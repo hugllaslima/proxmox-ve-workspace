@@ -43,6 +43,7 @@ scripts-ssh/
   - **Tratamento de Duplicatas**: Detecta se a chave já existe e oferece opções para substituir, excluir ou manter a chave existente.
   - **Comentários Detalhados**: Adiciona um comentário ao `authorized_keys` com o nome do proprietário da chave, a data e o usuário que realizou a adição.
   - **Gerenciamento de Permissões**: Garante que o diretório `.ssh` e o arquivo `authorized_keys` tenham as permissões corretas (700 e 600, respectivamente).
+  - **Compatibilidade com Link Simbólico**: Quando `authorized_keys` for um link simbólico, o script adiciona a chave normalmente e ignora as etapas de `chown` e `chmod` no arquivo para evitar erros em ambientes como Proxmox VE, mantendo o comportamento padrão em distribuições Linux convencionais.
 
 - **Como Utilizar**:
   1. **Tornar o script executável**:
@@ -87,4 +88,5 @@ scripts-ssh/
 ## 🔒 Notas de Segurança
 
 - **Backup**: Embora os scripts criem backups, é sempre uma boa prática ter um backup completo dos seus arquivos de configuração.
+- **Proxmox VE e Ambientes Similares**: O script `add_key_ssh_public.sh` detecta quando `authorized_keys` é um link simbólico e não força `chown`/`chmod` nesse arquivo, evitando falhas como `Operation not permitted`.
 - **Teste de Acesso**: Após adicionar uma chave e desabilitar o login por senha, sempre teste o acesso em uma nova janela de terminal antes de fechar a sessão atual para evitar ficar bloqueado para fora do servidor.

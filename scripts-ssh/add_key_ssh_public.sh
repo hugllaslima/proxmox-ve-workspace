@@ -112,6 +112,24 @@ CURRENT_DATETIME=$(date +'%Y-%m-%d %H:%M:%S') # Captura a data e hora atual
 # A linha de comentário foi atualizada para incluir o usuário que executou o script
 COMMENT_LINE="# Key for: $KEY_OWNER_NAME (added by $EXECUTING_USER on $CURRENT_DATETIME)"
 
+run_command() {
+    if [ "$TARGET_USER" != "$USER" ]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
+set_authorized_keys_permissions() {
+    if run_command test -L "$AUTH_KEYS_FILE"; then
+        echo "Aviso: $AUTH_KEYS_FILE é um link simbólico. As etapas de chown e chmod serão ignoradas."
+        return 0
+    fi
+
+    run_command chown "$TARGET_USER:$TARGET_USER" "$AUTH_KEYS_FILE" || error_exit "Falha ao definir proprietário para $AUTH_KEYS_FILE."
+    run_command chmod 0600 "$AUTH_KEYS_FILE" || error_exit "Falha ao definir permissões para $AUTH_KEYS_FILE."
+}
+
 echo "A chave será adicionada para o usuário: $TARGET_USER"
 echo "Comentário a ser adicionado: $COMMENT_LINE"
 echo "Caminho do arquivo authorized_keys: $AUTH_KEYS_FILE"
@@ -142,12 +160,10 @@ if [ "$TARGET_USER" != "$USER" ]; then
     if [ ! -f "$AUTH_KEYS_FILE" ]; then
         echo "Criando arquivo $AUTH_KEYS_FILE..."
         sudo touch "$AUTH_KEYS_FILE" || error_exit "Falha ao criar arquivo $AUTH_KEYS_FILE."
-        sudo chown "$TARGET_USER:$TARGET_USER" "$AUTH_KEYS_FILE" || error_exit "Falha ao definir proprietário para $AUTH_KEYS_FILE."
-        sudo chmod 0600 "$AUTH_KEYS_FILE" || error_exit "Falha ao definir permissões para $AUTH_KEYS_FILE."
+        set_authorized_keys_permissions
     else
         # Garantir permissões e propriedade corretas se já existir
-        sudo chown "$TARGET_USER:$TARGET_USER" "$AUTH_KEYS_FILE" || error_exit "Falha ao definir proprietário para $AUTH_KEYS_FILE."
-        sudo chmod 0600 "$AUTH_KEYS_FILE" || error_exit "Falha ao definir permissões para $AUTH_KEYS_FILE."
+        set_authorized_keys_permissions
     fi
 else
     # Se o usuário alvo for o usuário atual, não é necessário sudo para a configuração inicial
@@ -159,7 +175,9 @@ else
     if [ ! -f "$AUTH_KEYS_FILE" ]; then
         echo "Criando arquivo $AUTH_KEYS_FILE..."
         touch "$AUTH_KEYS_FILE" || error_exit "Falha ao criar arquivo $AUTH_KEYS_FILE."
-        chmod 0600 "$AUTH_KEYS_FILE" || error_exit "Falha ao definir permissões para $AUTH_KEYS_FILE."
+        set_authorized_keys_permissions
+    else
+        set_authorized_keys_permissions
     fi
 fi
 
@@ -210,17 +228,6 @@ while true; do
         echo "Por favor, cole a chave pública novamente."
     fi
 done
-
-# Função auxiliar para executar comandos com ou sem sudo
-# Isso garante que operações de arquivo sejam feitas com as permissões corretas
-# dependendo se o usuário alvo é o usuário atual ou outro.
-run_command() {
-    if [ "$TARGET_USER" != "$USER" ]; then
-        sudo "$@"
-    else
-        "$@"
-    fi
-}
 
 # ============================================================================
 # ETAPA 5: Verificar duplicidade e interagir com o usuário
@@ -301,8 +308,7 @@ CONTENT_TO_WRITE="$COMMENT_LINE"$'\n'"$KEY_CONTENT"
 
 # Usa a função run_command para lidar com sudo ou não
 echo "$CONTENT_TO_WRITE" | run_command tee -a "$AUTH_KEYS_FILE" > /dev/null || error_exit "Falha ao adicionar a chave pública."
-run_command chown "$TARGET_USER:$TARGET_USER" "$AUTH_KEYS_FILE" || error_exit "Falha ao definir proprietário para "$AUTH_KEYS_FILE" após adição."
-run_command chmod 0600 "$AUTH_KEYS_FILE" || error_exit "Falha ao definir permissões para "$AUTH_KEYS_FILE" após adição."
+set_authorized_keys_permissions
 
 echo "Chave pública adicionada com sucesso para o usuário '$TARGET_USER'!"
 echo ""
