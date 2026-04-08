@@ -31,7 +31,7 @@
 # ==============================================================================
 
 # Define o caminho para o arquivo de configuração das contas do script
-CONFIG_FILE="$HOME/.git_switcher_accounts.conf"
+CONFIG_FILE="$HOME/.ssh/git_switcher_accounts.conf"
 # Define o caminho para o arquivo de configuração SSH
 SSH_CONFIG_FILE="$HOME/.ssh/config"
 # Array para armazenar os detalhes das contas (cada elemento é uma string separada por '|')
