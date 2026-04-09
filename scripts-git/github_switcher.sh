@@ -29,32 +29,36 @@
 # 3. Siga as instruções interativas. Se for configurar um repositório, navegue
 #    até a pasta raiz do seu projeto Git antes de escolher a opção.
 #
-# Informações:
-# Guarde o script em uma pasta centralizada no seu HOME e adicione-a ao seu PATH.
-
-# 1. Crie uma pasta de scripts: mkdir -p ~/scripts
+# ==============================================================================
+# INSTRUÇÕES DE INSTALAÇÃO E USO GLOBAL:
+# ==============================================================================
+#
+# Para utilizar este script de qualquer local do terminal:
+#
+# 1. Crie uma pasta de scripts na sua "home": mkdir -p ~/scripts
 # 2. Mova o script para lá: mv github_switcher.sh ~/scripts/
 # 3. Dê permissão: chmod +x ~/scripts/github_switcher.sh
-# 4. Adicione ao seu ~/.bashrc ou ~/.zshrc com o comando abaixo:
+# 4. Adicione ao seu ~/.bashrc ou ~/.zshrc:
 #
-#   -> Comando: export PATH="$HOME/scripts:$PATH"
+#    Comando: export PATH="$HOME/scripts:$PATH"
 #
 # ==============================================================================
-# COMO FUNCIONA A AUTENTICAÇÃO (SSH ALIASING):
+# LOGICA DE FUNCIONAMENTO (SSH ALIASING):
 # ==============================================================================
-# O script utiliza "Aliases" (apelidos) para diferenciar múltiplas contas.
+#
+# O script utiliza "Aliases" para gerenciar múltiplas identidades:
 # 
-# 1. SSH CONFIG: O script cria entradas no ~/.ssh/config usando o 'Host SSH' 
-#    como um apelido (ex: github.com-hugllaslima) que aponta para o domínio 
-#    real (github.com) usando uma chave privada específica.
+# 1. SSH CONFIG (~/.ssh/config): O script cria entradas 'Host' que atuam como
+#    apelidos (ex: github.com-hugllas). Cada apelido aponta para o domínio real
+#    (github.com) mas força o uso de uma 'IdentityFile' (chave SSH) específica.
 #
-# 2. GIT REMOTE: Para que o Git use a chave correta, a URL do repositório 
-#    PRECISA ser alterada para usar esse apelido. 
-#    Ex: git@github.com-hugllaslima:usuario/repo.git
+# 2. GIT REMOTE: Para que o Git use a chave correta, a URL do repositório local
+#    PRECISA ser alterada para usar o apelido definido.
+#    Ex: git remote set-url origin git@github.com-hugllas:usuario/repo.git
 #
-# 3. IDENTIDADES: Ao fazer isso, o SSH intercepta a conexão e força o uso 
-#    apenas da chave vinculada àquele apelido (IdentitiesOnly yes), 
-#    evitando erros de 'Permission Denied' por conflito de contas.
+# 3. AUTOMAÇÃO: A opção 1 deste script automatiza tanto a troca da URL do 
+#    remoto quanto a configuração do user.name e user.email local.
+#
 # ==============================================================================
 
 # Define o caminho para o arquivo de configuração das contas do script
