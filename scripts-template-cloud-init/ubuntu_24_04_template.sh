@@ -1,4 +1,60 @@
 #!/bin/bash
+# ==============================================================================
+# SCRIPT PARA CRIAÇÃO DE TEMPLATE CLOUD-INIT UBUNTU 24.04 NO PROXMOX VE
+# ==============================================================================
+#
+# Script: ubuntu_24_04_template.sh
+#
+# Descrição:
+#   Este script automatiza a criação de um template de máquina virtual (VM)
+#   Ubuntu 24.04 utilizando Cloud-Init no Proxmox VE.
+#
+# Funcionalidades:
+#   - Coleta de dados (ID, Nome, Storage, Tamanho do disco).
+#   - Download e verificação da imagem Ubuntu 24.04 Cloud-Init.
+#   - Criação da estrutura base da VM.
+#   - Importação do disco para o storage selecionado.
+#   - Configuração de Hardware e Cloud-Init (virtio, boot, serial).
+#   - Redimensionamento do disco.
+#   - Revisão das configurações e conversão para Template.
+#
+# Autor:
+#   Hugllas R. S. Lima
+#
+# Contato:
+#   - https://www.linkedin.com/in/hugllas-r-s-lima/
+#   - https://github.com/hugllaslima/proxmox-ve-workspace/tree/main/scripts-template-cloud-init
+#
+# Versão:
+#   1.0
+#
+# Data:
+#   09/04/2026
+#
+# Pré-requisitos:
+#   - Acesso root no nó Proxmox VE.
+#   - Conexão com a internet para baixar a imagem cloud-init do Ubuntu.
+#   - Espaço suficiente no storage de destino para o disco da VM.
+#
+# Como usar:
+#   1. chmod +x ubuntu_24_04_template.sh
+#   2. ./ubuntu_24_04_template.sh
+#   3. Siga as instruções interativas para configurar o template.
+#
+# Onde Utilizar:
+#   - Diretamente no nó Proxmox VE (Shell).
+#
+# Notas Importantes:
+#   - A imagem baixada ('noble-server-cloudimg-amd64.img') será armazenada em
+#     '/var/lib/vz/template/iso'.
+#   - A VM resultante será convertida em template e não poderá ser iniciada
+#     diretamente.
+#
+# ------------------------------------------------------------------------------
+
+# ==============================================================================
+# INICIO DO SCRIPT
+# ==============================================================================
 
 # Cores para facilitar a leitura
 GREEN='\033[0;32m'
