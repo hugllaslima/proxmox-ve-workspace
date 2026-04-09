@@ -28,6 +28,33 @@
 # 2. Execute o script de qualquer lugar: ./github_switcher.sh
 # 3. Siga as instruções interativas. Se for configurar um repositório, navegue
 #    até a pasta raiz do seu projeto Git antes de escolher a opção.
+#
+# Informações:
+# Guarde o script em uma pasta centralizada no seu HOME e adicione-a ao seu PATH.
+
+# 1. Crie uma pasta de scripts: mkdir -p ~/scripts
+# 2. Mova o script para lá: mv github_switcher.sh ~/scripts/
+# 3. Dê permissão: chmod +x ~/scripts/github_switcher.sh
+# 4. Adicione ao seu ~/.bashrc ou ~/.zshrc com o comando abaixo:
+#
+#   -> Comando: export PATH="$HOME/scripts:$PATH"
+#
+# ==============================================================================
+# COMO FUNCIONA A AUTENTICAÇÃO (SSH ALIASING):
+# ==============================================================================
+# O script utiliza "Aliases" (apelidos) para diferenciar múltiplas contas.
+# 
+# 1. SSH CONFIG: O script cria entradas no ~/.ssh/config usando o 'Host SSH' 
+#    como um apelido (ex: github.com-hugllaslima) que aponta para o domínio 
+#    real (github.com) usando uma chave privada específica.
+#
+# 2. GIT REMOTE: Para que o Git use a chave correta, a URL do repositório 
+#    PRECISA ser alterada para usar esse apelido. 
+#    Ex: git@github.com-hugllaslima:usuario/repo.git
+#
+# 3. IDENTIDADES: Ao fazer isso, o SSH intercepta a conexão e força o uso 
+#    apenas da chave vinculada àquele apelido (IdentitiesOnly yes), 
+#    evitando erros de 'Permission Denied' por conflito de contas.
 # ==============================================================================
 
 # Define o caminho para o arquivo de configuração das contas do script
