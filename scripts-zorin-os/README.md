@@ -65,3 +65,25 @@ Para garantir que sua partição NTFS seja montada corretamente durante o boot c
     UUID=FCEC347BEC34326E  /media/hugllas-lima/Documentos  ntfs-3g  uid=1000,gid=1000,umask=0022,defaults  0  0
     ```
 Esta configuração ajuda a prevenir problemas de permissão no futuro, embora o Fast Startup do Windows ainda possa exigir a execução deste script ocasionalmente.
+
+## 🪟 Configuração Recomendada no Windows (Fast Startup)
+
+O principal causador do bloqueio de partições NTFS (erro de "somente leitura") no Linux em ambientes *Dual Boot* é o recurso de **Inicialização Rápida (Fast Startup)** do Windows. Para evitar a necessidade de rodar o script de correção com frequência, é altamente recomendado desativar esse recurso no Windows.
+
+### Opção 1: Via Interface Gráfica (Painel de Controle)
+
+1. Pressione as teclas `Windows + R`, digite `powercfg.cpl` e aperte **Enter**.
+2. No menu à esquerda, clique em **"Escolher a função dos botões de energia"**.
+3. Clique no link com o escudo do administrador: **"Alterar configurações não disponíveis no momento"** (isso liberará as opções que estão acinzentadas na parte inferior).
+4. Na seção "Configurações de desligamento", **desmarque** a caixa **"Ligar inicialização rápida (recomendado)"**.
+5. Clique em **Salvar alterações**.
+
+### Opção 2: Via Terminal (Prompt de Comando como Administrador)
+
+Como você tem facilidade com terminal e automação, pode fazer isso de forma mais direta abrindo o **Prompt de Comando (como Administrador)** no Windows e executando o seguinte comando:
+
+```cmd
+powercfg /h off
+```
+
+> **Nota:** Esse comando desativa a hibernação por completo no Windows. Como o "Fast Startup" depende da hibernação para funcionar, ele é desativado automaticamente junto com ela. Isso libera os discos (como o `/dev/sdb1`) para serem montados pelo Linux com permissão de escrita de forma definitiva.
