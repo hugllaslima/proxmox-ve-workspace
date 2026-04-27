@@ -41,6 +41,7 @@ Os scripts são organizados em diretórios modulares, cada um com seu próprio `
 | Categoria | Diretório | Descrição |
 | :--- | :--- | :--- |
 | **Gestão de VMs** | [`scripts-vms/`](./scripts-vms) | Criação e configuração completa de VMs Ubuntu e derivados. |
+| **Templates Cloud-Init** | [`scripts-template-cloud-init/`](./scripts-template-cloud-init) | Criação automatizada de templates base (Ubuntu, Debian) prontos para Cloud-Init. |
 | **Gestão de Contêineres** | [`scripts-container-lxc/`](./scripts-container-lxc) | Criação e configuração de usuários em contêineres LXC. |
 | **Docker** | [`scripts-docker/`](./scripts-docker) | Instalação e configuração do Docker em diferentes sistemas. |
 | **OnlyOffice Server** | [`scripts-onlyoffice-server/`](./scripts-onlyoffice-server) | Instalação e manutenção do OnlyOffice Server. |
@@ -104,6 +105,7 @@ Siga as instruções interativas. Os scripts foram projetados para serem autoexp
 
 ## 💡 Casos de Uso
 
+- **Criação de Templates:** Gere templates base (Ubuntu, Debian) atualizados e prontos para uso com Cloud-Init.
 - **Provisionamento Rápido:** Crie e configure uma nova VM Ubuntu com Docker e um usuário `sudo` em minutos.
 - **Ambiente de Desenvolvimento:** Automatize a criação de contêineres LXC para seus projetos de desenvolvimento.
 - **Monitoramento Centralizado:** Instale e configure agentes do Prometheus ou Zabbix em toda a sua infraestrutura.
