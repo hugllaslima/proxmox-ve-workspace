@@ -125,12 +125,27 @@ qm config $VM_ID
 echo -e "------------------------------------------------"
 
 # 5. Confirmação Final
-read -p "As configurações estão corretas? Digite 's' para concluir e converter em Template: " CONFIRM
+read -p "Deseja converter a VM em Template agora? (s/n): " CONFIRM
 
 if [[ "$CONFIRM" == "s" || "$CONFIRM" == "S" ]]; then
     echo -e "${GREEN}[6/6] Convertendo para Template...${NC}"
     qm template $VM_ID
     echo -e "${GREEN}Sucesso! Template $VM_ID criado.${NC}"
 else
-    echo -e "${RED}Processo interrompido. A VM $VM_ID foi criada mas NÃO foi convertida em template.${NC}"
+    echo -e "\n${GREEN}A VM $VM_ID foi criada com sucesso, mas NÃO foi convertida em template.${NC}"
+    echo -e "Para finalizar a configuração antes de converter, acesse a interface (GUI) do Proxmox:"
+    echo -e "--------------------------------------------------------------------------------------"
+    echo -e "1. Selecione a VM criada (${GREEN}$VM_ID${NC}) e vá até a aba ${GREEN}Cloud-Init${NC}."
+    echo -e "2. Preencha os campos conforme necessário:"
+    echo -e "   - ${GREEN}User${NC}: ubuntu (O usuário que você vai usar para logar)"
+    echo -e "   - ${GREEN}Password${NC}: sua_senha (Senha do Servidor)"
+    echo -e "   - ${GREEN}SSH Public Key${NC}: Cole sua chave id_rsa.pub (Se for mais de uma, cole uma abaixo da outra)"
+    echo -e "   - ${GREEN}IP Config${NC}: Geralmente deixamos em DHCP para o template"
+    echo -e "3. ${GREEN}**ATENÇÃO**${NC} - Clique em ${GREEN}Regenerate Image${NC} para salvar as configurações do Cloud-Init."
+    echo -e "4. Ligue a VM e acesse o console para rodar os comandos:"
+    echo -e "   ${GREEN}$ sudo timedatectl set-timezone America/Sao_Paulo${NC}"
+    echo -e "   ${GREEN}$ sudo apt update && sudo apt install qemu-guest-agent -y${NC}"
+    echo -e "5. Desligue a VM."
+    echo -e "6. Clique com o botão direito na VM e selecione ${GREEN}Convert to Template${NC}."
+    echo -e "--------------------------------------------------------------------------------------"
 fi
