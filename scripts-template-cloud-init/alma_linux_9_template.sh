@@ -3,7 +3,7 @@
 # SCRIPT PARA CRIAÇÃO DE TEMPLATE CLOUD-INIT ALMALINUX 9 NO PROXMOX VE
 # ==============================================================================
 #
-# Script: almalinux_9_template.sh
+# Script: alma_linux_9_template.sh
 #
 # Descrição:
 #   Este script automatiza a criação de um template de máquina virtual (VM)
