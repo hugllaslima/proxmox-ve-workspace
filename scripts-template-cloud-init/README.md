@@ -6,11 +6,13 @@ Este diretório contém scripts para automatizar a criação de templates de má
 
 ```text
 scripts-template-cloud-init/
-├── debian_13_template.sh
-├── debian_12_template.sh
+├── alma-linux_9_template.sh
 ├── debian_11_template.sh
-├── ubuntu_24_04_template.sh
+├── debian_12_template.sh
+├── debian_13_template.sh
+├── rocky_linux_9_template.sh
 ├── ubuntu_22_04_template.sh
+├── ubuntu_24_04_template.sh
 └── README.md
 ```
 
@@ -18,22 +20,24 @@ scripts-template-cloud-init/
 
 | Script | Descrição | Imagem Base |
 | :--- | :--- | :--- |
-| `ubuntu_24_04_template.sh` | Cria um template do Ubuntu Server 24.04 (Noble Numbat). | `noble-server-cloudimg-amd64.img` |
 | `ubuntu_22_04_template.sh` | Cria um template do Ubuntu Server 22.04 (Jammy Jellyfish). | `jammy-server-cloudimg-amd64.img` |
-| `debian_13_template.sh` | Cria um template do Debian 13 (Trixie). | `debian-13-generic-amd64.qcow2` |
-| `debian_12_template.sh` | Cria um template do Debian 12 (Bookworm). | `debian-12-generic-amd64.qcow2` |
+| `ubuntu_24_04_template.sh` | Cria um template do Ubuntu Server 24.04 (Noble Numbat). | `noble-server-cloudimg-amd64.img` |
 | `debian_11_template.sh` | Cria um template do Debian 11 (Bullseye). | `debian-11-generic-amd64.qcow2` |
+| `debian_12_template.sh` | Cria um template do Debian 12 (Bookworm). | `debian-12-generic-amd64.qcow2` |
+| `debian_13_template.sh` | Cria um template do Debian 13 (Trixie). | `debian-13-generic-amd64.qcow2` |
+| `rocky_linux_9_template.sh` | Cria um template do Rocky Linux 9. | `Rocky-9-GenericCloud.latest.x86_64.qcow2` |
+| `alma-linux_9_template.sh` | Cria um template do AlmaLinux 9. | `AlmaLinux-9-GenericCloud-latest.x86_64.qcow2` |
 
-### 1. `ubuntu_24_04_template.sh`
+### 1. `ubuntu_22_04_template.sh`
 
 - **Função**:
-  Automatiza a criação de um template de máquina virtual (VM) Ubuntu 24.04 utilizando Cloud-Init no Proxmox VE. O script gerencia o download da imagem oficial, criação da VM, importação do disco, configurações de hardware (virtio, boot, serial) e conversão final para template.
+  Automatiza a criação de um template de máquina virtual (VM) Ubuntu 22.04 (Jammy Jellyfish) utilizando Cloud-Init no Proxmox VE. O script gerencia o download da imagem oficial, criação da VM, importação do disco, configurações de hardware (virtio, boot, serial) e conversão final para template.
 
 - **Quando Utilizar**:
   Ideal para provisionar rapidamente um template base do Ubuntu 24.04 pronto para ser clonado e configurado automaticamente via Cloud-Init em seu ambiente Proxmox.
 
 - **Recursos Principais**:
-  - Download automático da imagem oficial `noble-server-cloudimg-amd64.img`.
+  - Download automático da imagem oficial `jammy-server-cloudimg-amd64.img`.
   - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
   - Ajuste automático das configurações de hardware necessárias para o Cloud-Init (virtio, porta serial, etc.).
   - Opção interativa para revisar as configurações da VM via GUI antes de converter definitivamente em template.
@@ -49,16 +53,16 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela para configurar o template.
 
-### 2. `ubuntu_22_04_template.sh`
+### 2. `ubuntu_24_04_template.sh`
 
 - **Função**:
-  Automatiza a criação de um template de máquina virtual (VM) Ubuntu 22.04 (Jammy Jellyfish) utilizando Cloud-Init no Proxmox VE.
+  Automatiza a criação de um template de máquina virtual (VM) Ubuntu 24.04 (Noble Numbat) utilizando Cloud-Init no Proxmox VE.
 
 - **Quando Utilizar**:
   Ideal para provisionar rapidamente um template base do Ubuntu 22.04 pronto para ser clonado e configurado automaticamente via Cloud-Init.
 
 - **Recursos Principais**:
-  - Download automático da imagem oficial `jammy-server-cloudimg-amd64.img`.
+  - Download automático da imagem oficial `noble-server-cloudimg-amd64.img`.
   - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
   - Ajuste automático das configurações de hardware necessárias para o Cloud-Init.
   - Opção interativa para revisar as configurações da VM via GUI antes de converter definitivamente em template.
@@ -66,11 +70,11 @@ scripts-template-cloud-init/
 - **Como Utilizar**:
   1. **Tornar o script executável**:
      ```bash
-     chmod +x ubuntu_22_04_template.sh
+     chmod +x ubuntu_24_04_template.sh
      ```
   2. **Executar no nó Proxmox**:
      ```bash
-     ./ubuntu_22_04_template.sh
+     ./ubuntu_24_04_template.sh
      ```
   3. Siga as instruções interativas na tela para configurar o template.
 
@@ -146,6 +150,56 @@ scripts-template-cloud-init/
   2. **Executar no nó Proxmox**:
      ```bash
      ./debian_11_template.sh
+     ```
+  3. Siga as instruções interativas na tela.
+
+### 6. `rocky_linux_9_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) Rocky Linux 9 utilizando Cloud-Init no Proxmox VE. 
+
+- **Quando Utilizar**:
+  Sempre que precisar provisionar rapidamente um ambiente Enterprise Linux estável (compatível bit-a-bit com RHEL 9) para laboratórios, testes ou produção.
+
+- **Recursos Principais**:
+  - Download automático da imagem oficial genérica `Rocky-9-GenericCloud.latest.x86_64.qcow2`.
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware para o Cloud-Init.
+  - Instruções integradas (com comandos `dnf`) de pré-configuração (GUI).
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x rocky_linux_9_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./rocky_linux_9_template.sh
+     ```
+  3. Siga as instruções interativas na tela.
+
+### 7. `almalinux_9_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) AlmaLinux 9 utilizando Cloud-Init no Proxmox VE. 
+
+- **Quando Utilizar**:
+  Sempre que precisar de um sistema operacional robusto e 100% binário-compatível com RHEL 9 para implantações corporativas, servidores web ou laboratórios.
+
+- **Recursos Principais**:
+  - Download automático da imagem oficial genérica `AlmaLinux-9-GenericCloud-latest.x86_64.qcow2`.
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware para o Cloud-Init.
+  - Instruções integradas de pós-instalação para comandos `dnf` e limpeza do sistema.
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x almalinux_9_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./almalinux_9_template.sh
      ```
   3. Siga as instruções interativas na tela.
 
