@@ -197,4 +197,5 @@ Recomendamos seguir os passos abaixo diretamente na interface web (GUI) do Proxm
 ## 🔒 Notas Importantes
 
 - A imagem baixada será armazenada no diretório `/var/lib/vz/template/iso`.
-- A VM resultante será convertida em template e **não poderá ser iniciada diretamente**. Para utilizá-la, você deve criar um "Clone Completo" (Full Clone) ou "Clone Vinculado" (Linked Clone) a partir deste template e então definir os parâmetros do Cloud-Init.
+- A VM resultante será convertida em template e **não poderá ser iniciada diretamente**. Para utilizá-la, você deve criar um clone a partir deste template e então definir os parâmetros do Cloud-Init.
+- 💡 **DICA DE OURO (Full Clone vs Linked Clone):** Quando for clonar o template para criar uma nova VM, escolha sempre a opção **"Full Clone"** (Clone Completo). Isso garante que a nova VM tenha seu próprio disco independente. Se você usar o *Linked Clone*, a nova VM ficará eternamente dependente do disco do template, o que pode causar problemas graves se você excluir ou alterar o template no futuro.
