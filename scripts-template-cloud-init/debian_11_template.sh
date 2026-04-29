@@ -1,17 +1,17 @@
 #!/bin/bash
 # ==============================================================================
-# SCRIPT PARA CRIAÇÃO DE TEMPLATE CLOUD-INIT DEBIAN 12 NO PROXMOX VE
+# SCRIPT PARA CRIAÇÃO DE TEMPLATE CLOUD-INIT DEBIAN 11 NO PROXMOX VE
 # ==============================================================================
 #
-# Script: debian_12_template.sh
+# Script: debian_11_template.sh
 #
 # Descrição:
 #   Este script automatiza a criação de um template de máquina virtual (VM)
-#   Debian 12 (Bookworm) utilizando Cloud-Init no Proxmox VE.
+#   Debian 11 (Bullseye) utilizando Cloud-Init no Proxmox VE.
 #
 # Funcionalidades:
 #   - Coleta de dados (ID, Nome, Storage, Tamanho do disco).
-#   - Download e verificação da imagem Debian 12 Cloud-Init.
+#   - Download e verificação da imagem Debian 11 Cloud-Init.
 #   - Criação da estrutura base da VM.
 #   - Importação do disco para o storage selecionado.
 #   - Configuração de Hardware e Cloud-Init (virtio, boot, serial).
@@ -37,15 +37,15 @@
 #   - Espaço suficiente no storage de destino para o disco da VM.
 #
 # Como usar:
-#   1. chmod +x debian_12_template.sh
-#   2. ./debian_12_template.sh
+#   1. chmod +x debian_11_template.sh
+#   2. ./debian_11_template.sh
 #   3. Siga as instruções interativas para configurar o template.
 #
 # Onde Utilizar:
 #   - Diretamente no nó Proxmox VE (Shell).
 #
 # Notas Importantes:
-#   - A imagem baixada ('debian-12-generic-amd64.qcow2') será armazenada em
+#   - A imagem baixada ('debian-11-generic-amd64.qcow2') será armazenada em
 #     '/var/lib/vz/template/iso'.
 #   - A VM resultante será convertida em template e não poderá ser iniciada
 #     diretamente.
@@ -61,11 +61,11 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== Proxmox Cloud-Init Template Creator (Debian 12) ===${NC}"
+echo -e "${GREEN}=== Proxmox Cloud-Init Template Creator (Debian 11) ===${NC}"
 
 # 1. Pergunta o ID da VM
 while true; do
-    read -p "Digite o ID para a nova VM Template (ex: 9002): " VM_ID
+    read -p "Digite o ID para a nova VM Template (ex: 9003): " VM_ID
     if qm status $VM_ID >/dev/null 2>&1; then
         echo -e "${RED}Erro: O ID $VM_ID já está em uso! Por favor, escolha outro ID.${NC}"
     else
@@ -74,7 +74,7 @@ while true; do
 done
 
 # 2. Pergunta o Nome da VM
-read -p "Digite o Nome para o Template (ex: debian-12-template): " VM_NAME
+read -p "Digite o Nome para o Template (ex: debian-11-template): " VM_NAME
 
 # 3. Lista Storages disponíveis e pergunta onde alocar
 echo -e "\nStorages disponíveis:"
@@ -87,12 +87,12 @@ read -p "Qual o tamanho final do disco em GB? (ex: 20): " DISK_SIZE
 # --- Início do Processo ---
 
 IMAGE_DIR="/var/lib/vz/template/iso"
-IMAGE_NAME="debian-12-generic-amd64.qcow2"
+IMAGE_NAME="debian-11-generic-amd64.qcow2"
 
-# URL da imagem Cloud-Init do Debian 12 (Bookworm).
-IMAGE_URL="https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2"
+# URL da imagem Cloud-Init do Debian 11 (Bullseye).
+IMAGE_URL="https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2"
 
-echo -e "\n${GREEN}[1/6] Baixando/Verificando imagem Debian 12...${NC}"
+echo -e "\n${GREEN}[1/6] Baixando/Verificando imagem Debian 11...${NC}"
 mkdir -p $IMAGE_DIR
 if [ ! -f "$IMAGE_DIR/$IMAGE_NAME" ]; then
     wget -O "$IMAGE_DIR/$IMAGE_NAME" "$IMAGE_URL" || { echo -e "${RED}Erro ao baixar imagem!${NC}"; exit 1; }

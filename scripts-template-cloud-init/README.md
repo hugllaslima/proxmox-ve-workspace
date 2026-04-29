@@ -8,6 +8,7 @@ Este diretório contém scripts para automatizar a criação de templates de má
 scripts-template-cloud-init/
 ├── debian_13_template.sh
 ├── debian_12_template.sh
+├── debian_11_template.sh
 ├── ubuntu_24_04_template.sh
 ├── ubuntu_22_04_template.sh
 └── README.md
@@ -21,6 +22,7 @@ scripts-template-cloud-init/
 | `ubuntu_22_04_template.sh` | Cria um template do Ubuntu Server 22.04 (Jammy Jellyfish). | `jammy-server-cloudimg-amd64.img` |
 | `debian_13_template.sh` | Cria um template do Debian 13 (Trixie). | `debian-13-generic-amd64.qcow2` |
 | `debian_12_template.sh` | Cria um template do Debian 12 (Bookworm). | `debian-12-generic-amd64.qcow2` |
+| `debian_11_template.sh` | Cria um template do Debian 11 (Bullseye). | `debian-11-generic-amd64.qcow2` |
 
 ### 1. `ubuntu_24_04_template.sh`
 
@@ -47,7 +49,32 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela para configurar o template.
 
-### 2. `debian_13_template.sh`
+### 2. `ubuntu_22_04_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) Ubuntu 22.04 (Jammy Jellyfish) utilizando Cloud-Init no Proxmox VE.
+
+- **Quando Utilizar**:
+  Ideal para provisionar rapidamente um template base do Ubuntu 22.04 pronto para ser clonado e configurado automaticamente via Cloud-Init.
+
+- **Recursos Principais**:
+  - Download automático da imagem oficial `jammy-server-cloudimg-amd64.img`.
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware necessárias para o Cloud-Init.
+  - Opção interativa para revisar as configurações da VM via GUI antes de converter definitivamente em template.
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x ubuntu_22_04_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./ubuntu_22_04_template.sh
+     ```
+  3. Siga as instruções interativas na tela para configurar o template.
+
+### 3. `debian_13_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Debian 13 (Trixie) utilizando Cloud-Init no Proxmox VE. 
@@ -72,12 +99,100 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
+### 4. `debian_12_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) Debian 12 (Bookworm) utilizando Cloud-Init no Proxmox VE. 
+
+- **Quando Utilizar**:
+  Sempre que precisar criar uma base estável do Debian 12 para clonagem rápida via Cloud-Init.
+
+- **Recursos Principais**:
+  - Download automático da imagem oficial `debian-12-generic-amd64.qcow2`.
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware e rede para o Cloud-Init.
+  - Instruções integradas de pré-configuração (GUI).
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x debian_12_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./debian_12_template.sh
+     ```
+  3. Siga as instruções interativas na tela.
+
+### 5. `debian_11_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) Debian 11 (Bullseye) utilizando Cloud-Init no Proxmox VE. 
+
+- **Quando Utilizar**:
+  Para provisionar VMs baseadas no Debian 11 (legado/estável) com agilidade usando Cloud-Init.
+
+- **Recursos Principais**:
+  - Download automático da imagem oficial `debian-11-generic-amd64.qcow2`.
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware para o Cloud-Init.
+  - Instruções integradas de pré-configuração (GUI) para definição de senhas e chaves SSH.
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x debian_11_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./debian_11_template.sh
+     ```
+  3. Siga as instruções interativas na tela.
+
 ## ⚠️ Pré-requisitos
 
 - **Sistema Operacional**: Proxmox VE.
 - **Acesso**: Acesso `root` no nó Proxmox VE (via Shell).
 - **Conectividade**: Conexão com a internet para baixar as imagens cloud-init (Ubuntu/Debian).
 - **Armazenamento**: Espaço suficiente no storage de destino para o disco da VM.
+
+---
+
+## 🛠️ Configurações Manuais Pós-Script (Opcional)
+
+Se durante a execução interativa do script você optar por **NÃO** converter a VM em template imediatamente (respondendo `n` ou `N`), você terá a oportunidade de personalizar dados do Cloud-Init e instalar pacotes essenciais antes de convertê-la manualmente.
+
+Recomendamos seguir os passos abaixo diretamente na interface web (GUI) do Proxmox:
+
+1. **Acesse as opções Cloud-Init**: Selecione a VM criada (ex: `9004`) e vá até a aba **Cloud-Init**.
+2. **Preencha os campos conforme necessário**:
+   - **User**: O nome do usuário principal que será criado nas futuras VMs clonadas. Você pode colocar qualquer nome que quiser (ex: `admin`, `seu_nome`, `nome_da_distro`). Como *exemplo padrão*, as imagens costumam usar o nome da distro: `debian` ou `ubuntu`.
+   - **Password**: *sua_senha_forte* (senha de root/administrador do servidor).
+   - **DNS Domain**: O domínio DNS que será usado para a VM (ex: `example.com` ou `domain.local`). Pode deixar em branco para usar o domínio padrão.
+   - **DNS Servers**: Os servidores DNS que serão usados para a VM (ex: `8.8.8.8`, `1.1.1.1`). Pode deixar em branco para usar os servidores DNS padrão do Proxmox VE.
+   - **SSH Public Key**: Cole o conteúdo da sua chave pública (`id_rsa.pub` ou similar). Se for adicionar múltiplas chaves, cole uma abaixo da outra.
+   - **Upgrade Packages**: Se você quiser atualizar os pacotes da VM quando for convertida em template, marque esta opção. Caso contrário, deixe desmarcado.
+   - **IP Config**: Geralmente deixamos em `DHCP` para que a VM receba um IP novo quando clonada.
+3. ⚠️ **ATENÇÃO** ⚠️: Clique no botão **Regenerate Image** (no topo) para salvar as configurações do Cloud-Init no disco virtual.
+4. **Instalação do QEMU Guest Agent**: Ligue a VM, acesse o Console e rode o comando de instalação para garantir comunicação perfeita com o Proxmox.
+   - Para distros baseadas em Debian/Ubuntu:
+     ```bash
+     sudo apt update && sudo apt install qemu-guest-agent -y
+     ```
+   - Para distros baseadas em RedHat/CentOS/Rocky Linux:
+     ```bash
+     sudo yum install qemu-guest-agent -y
+     # ou
+     sudo dnf install qemu-guest-agent -y
+     ```
+5. **Limpeza do Histórico**: Antes de desligar a VM, limpe o histórico de comandos do terminal para que o template fique limpo e não repasse seu histórico para as futuras VMs clonadas:
+   ```bash
+   history -c && history -w
+   ```
+6. **Prepare para Template**: Desligue a VM (`sudo poweroff` ou via Proxmox).
+7. **Conversão**: Clique com o botão direito na VM e selecione **Convert to Template**.
+
+---
 
 ## 🔒 Notas Importantes
 

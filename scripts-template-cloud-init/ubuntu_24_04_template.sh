@@ -64,11 +64,14 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}=== Proxmox Cloud-Init Template Creator ===${NC}"
 
 # 1. Pergunta o ID da VM
-read -p "Digite o ID para a nova VM Template (ex: 9000): " VM_ID
-if qm status $VM_ID >/dev/null 2>&1; then
-    echo -e "${RED}Erro: O ID $VM_ID já está em uso!${NC}"
-    exit 1
-fi
+while true; do
+    read -p "Digite o ID para a nova VM Template (ex: 9000): " VM_ID
+    if qm status $VM_ID >/dev/null 2>&1; then
+        echo -e "${RED}Erro: O ID $VM_ID já está em uso! Por favor, escolha outro ID.${NC}"
+    else
+        break
+    fi
+done
 
 # 2. Pergunta o Nome da VM
 read -p "Digite o Nome para o Template (ex: ubuntu-24.04-template): " VM_NAME
