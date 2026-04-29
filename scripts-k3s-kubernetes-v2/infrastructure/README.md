@@ -13,11 +13,11 @@ Para manter a organização e escalabilidade do cluster, recomendamos e seguimos
 
 ```text
 k3s-proxmox-cluster/ 
- ├── traefik-gateway-rbac.yaml 
- ├── bootstrap/               # Arquivos de inicialização do cluster (CRDs) 
+ ├── traefik-gateway-rbac.yaml  # Configuração RBAC para o Traefik Gateway API
+ ├── bootstrap/                # Arquivos de inicialização do cluster (CRDs) 
  │   └── gateway-api-crds.yaml 
- ├── infrastructure/          # Ferramentas que dão suporte ao cluster 
- │   ├── networking/          # Traefik, Gateway, Certificados 
+ ├── infrastructure/           # Ferramentas que dão suporte ao cluster 
+ │   ├── networking/           # Traefik, Gateway, Certificados 
  │   │   ├── gateway-class.yaml 
  │   │   ├── gateway.yaml 
  │   │   ├── http-route-template.yaml 
@@ -96,8 +96,8 @@ graph TD
 Estes passos são realizados apenas uma vez, pelo administrador do cluster, para preparar o ambiente:
 
 ```bash
-# Entre no diretório de rede
-cd networking/
+# Entre no diretório networking do infrastructure
+cd infrastructure/networking/
 
 # 1. Aplicar as permissões de RBAC para o Traefik gerenciar o Gateway API
 kubectl apply -f traefik-gateway-rbac.yaml
@@ -126,4 +126,78 @@ Sempre que você criar uma nova aplicação no cluster e quiser expô-la (por ex
 
 ### 📝 Notas Importantes
 - **Gateway API CRDs:** O cluster já deve possuir as Custom Resource Definitions (CRDs) do Gateway API instaladas.
-- **DNS:** Certifique-se de que o hostname configurado no `HTTPRoute` resolva para o IP dos nós (ou do LoadBalancer/MetalLB) onde o Traefik está rodando.
+- **Resolução DNS Local (Hosts):** Como estamos usando domínios locais (ex: `app.example.local`) que não existem na internet pública, seu computador não sabe para qual IP enviar a requisição. Para acessar as aplicações pelo navegador, você precisa adicionar uma entrada no arquivo `hosts` da sua máquina (em `/etc/hosts` no Linux/Mac ou `C:\Windows\System32\drivers\etc\hosts` no Windows) apontando o IP do Traefik/MetalLB para o domínio:
+  ```text
+  <ip_do_MetalLB>  app.example.local
+  ```
+
+---
+
+## 🛠️ Troubleshooting e Comandos Úteis
+
+Se você encontrar problemas com o roteamento, permissões ou status do Gateway, utilize os comandos abaixo para diagnosticar e resolver falhas comuns.
+
+### 🔍 Verificação de Status
+
+**Verificar o status geral do Gateway:**
+```bash
+kubectl get gateway -n networking
+```
+> *O que faz:* Lista todos os Gateways no namespace `networking`. Você deve verificar se o status está como `Programmed: True` ou se há alguma indicação de erro (como `PortUnavailable`).
+
+**Acompanhar mudanças no Gateway em tempo real:**
+```bash
+kubectl get gateway -n networking -w
+```
+> *O que faz:* O parâmetro `-w` (watch) mantém o terminal aberto e exibe atualizações no status do Gateway assim que elas acontecem. Útil logo após aplicar correções.
+
+**Inspecionar os detalhes e eventos do Gateway:**
+```bash
+kubectl describe gateway cluster-gateway -n networking
+```
+> *O que faz:* Exibe informações profundas sobre o Gateway (substitua `cluster-gateway` pelo nome correto caso tenha alterado). Verifique a seção `Events` no final da saída para identificar falhas de criação, portas indisponíveis ou problemas de RBAC.
+
+**Checar os logs do Traefik Ingress Controller:**
+```bash
+kubectl logs -n networking -l app.kubernetes.io/name=traefik --tail=50
+```
+> *O que faz:* Puxa as últimas 50 linhas de log do Pod do Traefik. Fundamental para identificar se o Traefik está reclamando de falta de permissões (RBAC) para ler objetos do Gateway API.
+
+### 🔄 Recarregamento e Aplicação
+
+**Testar o tráfego simulando um Hostname local:**
+```bash
+curl -v -H "Host: awx.local" http://<ip_do_MetalLB>
+```
+> *O que faz:* Envia uma requisição HTTP forçando o cabeçalho `Host`. Isso é perfeito para testar se a rota (`HTTPRoute`) está funcionando antes mesmo de configurar um servidor DNS local.
+
+**Aplicar permissões de RBAC:**
+```bash
+kubectl apply -f traefik-gateway-rbac.yaml
+```
+> *O que faz:* Aplica (ou reaplica) as permissões necessárias para que o Traefik possa interagir com a Gateway API. Deve ser rodado se os logs do Traefik indicarem `permission denied` para listar `httproutes` ou `gateways`.
+
+**Aplicar a permissão cross-namespace (ReferenceGrant):**
+```bash
+kubectl apply -f reference-grant.yaml
+```
+> *O que faz:* Aplica o arquivo que permite que o Gateway (em `networking`) envie tráfego para a sua aplicação (em outro namespace). Se você receber erro `404 Not Found` no navegador e a rota estiver certa, o ReferenceGrant pode estar faltando.
+
+**Forçar o recarregamento do Traefik:**
+```bash
+kubectl rollout restart deployment traefik -n networking
+```
+> *O que faz:* Reinicia os Pods do Traefik de forma suave. Útil após aplicar novas regras de RBAC ou CRDs, forçando o Traefik a ler todas as configurações do zero.
+
+### 🗑️ Recriar Recursos (Último Recurso)
+
+Se o Gateway estiver preso em um estado de erro permanente, pode ser necessário recriá-lo:
+
+```bash
+# Deleta o Gateway atual
+kubectl delete -f gateway.yaml
+
+# Aplica novamente do zero
+kubectl apply -f gateway.yaml
+```
+> *O que faz:* Remove o recurso de forma limpa e o cria novamente. Ideal para limpar estados inválidos (ex: se o Listener travou por configuração errada de portas).
