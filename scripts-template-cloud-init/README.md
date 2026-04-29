@@ -7,6 +7,7 @@ Este diretório contém scripts para automatizar a criação de templates de má
 ```text
 scripts-template-cloud-init/
 ├── alma_linux_9_template.sh
+├── debian_10_template.sh
 ├── debian_11_template.sh
 ├── debian_12_template.sh
 ├── debian_13_template.sh
@@ -26,6 +27,7 @@ scripts-template-cloud-init/
 | `ubuntu_22_04_template.sh` | Cria um template do Ubuntu Server 22.04 (Jammy Jellyfish). | `jammy-server-cloudimg-amd64.img` |
 | `ubuntu_24_04_template.sh` | Cria um template do Ubuntu Server 24.04 (Noble Numbat). | `noble-server-cloudimg-amd64.img` |
 | `ubuntu_20_04_template.sh` | Cria um template do Ubuntu Server 20.04 (Focal Fossa). | `focal-server-cloudimg-amd64.img` |
+| `debian_10_template.sh` | Cria um template do Debian 10 (Buster). | `debian-10-generic-amd64.qcow2` |
 | `debian_11_template.sh` | Cria um template do Debian 11 (Bullseye). | `debian-11-generic-amd64.qcow2` |
 | `debian_12_template.sh` | Cria um template do Debian 12 (Bookworm). | `debian-12-generic-amd64.qcow2` |
 | `debian_13_template.sh` | Cria um template do Debian 13 (Trixie). | `debian-13-generic-amd64.qcow2` |
@@ -207,7 +209,32 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 8. `rocky_linux_9_template.sh`
+### 8. `debian_10_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) Debian 10 (Buster) utilizando Cloud-Init no Proxmox VE. 
+
+- **Quando Utilizar**:
+  Para provisionar VMs baseadas no Debian 10 (legado) com agilidade usando Cloud-Init, útil para compatibilidade de sistemas mais antigos.
+
+- **Recursos Principais**:
+  - Download automático da imagem oficial `debian-10-generic-amd64.qcow2`.
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware para o Cloud-Init.
+  - Instruções integradas de pré-configuração (GUI) para definição de senhas e chaves SSH.
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x debian_10_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./debian_10_template.sh
+     ```
+  3. Siga as instruções interativas na tela.
+
+### 9. `rocky_linux_9_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Rocky Linux 9 utilizando Cloud-Init no Proxmox VE. 
@@ -232,7 +259,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 9. `alma_linux_9_template.sh`
+### 10. `alma_linux_9_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) AlmaLinux 9 utilizando Cloud-Init no Proxmox VE. 
