@@ -6,7 +6,7 @@ Este diretório contém scripts para automatizar a criação de templates de má
 
 ```text
 scripts-template-cloud-init/
-├── alma-linux_9_template.sh
+├── alma_linux_9_template.sh
 ├── debian_11_template.sh
 ├── debian_12_template.sh
 ├── debian_13_template.sh
@@ -26,7 +26,7 @@ scripts-template-cloud-init/
 | `debian_12_template.sh` | Cria um template do Debian 12 (Bookworm). | `debian-12-generic-amd64.qcow2` |
 | `debian_13_template.sh` | Cria um template do Debian 13 (Trixie). | `debian-13-generic-amd64.qcow2` |
 | `rocky_linux_9_template.sh` | Cria um template do Rocky Linux 9. | `Rocky-9-GenericCloud.latest.x86_64.qcow2` |
-| `alma-linux_9_template.sh` | Cria um template do AlmaLinux 9. | `AlmaLinux-9-GenericCloud-latest.x86_64.qcow2` |
+| `alma_linux_9_template.sh` | Cria um template do AlmaLinux 9. | `AlmaLinux-9-GenericCloud-latest.x86_64.qcow2` |
 
 ### 1. `ubuntu_22_04_template.sh`
 
@@ -178,7 +178,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 7. `almalinux_9_template.sh`
+### 7. `alma_linux_9_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) AlmaLinux 9 utilizando Cloud-Init no Proxmox VE. 
@@ -195,11 +195,11 @@ scripts-template-cloud-init/
 - **Como Utilizar**:
   1. **Tornar o script executável**:
      ```bash
-     chmod +x almalinux_9_template.sh
+     chmod +x alma_linux_9_template.sh
      ```
   2. **Executar no nó Proxmox**:
      ```bash
-     ./almalinux_9_template.sh
+     ./alma_linux_9_template.sh
      ```
   3. Siga as instruções interativas na tela.
 
