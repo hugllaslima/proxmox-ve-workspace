@@ -7,6 +7,7 @@ Este diretório contém scripts para automatizar a criação de templates de má
 ```text
 scripts-template-cloud-init/
 ├── debian_13_template.sh
+├── debian_12_template.sh
 ├── ubuntu_24_04_template.sh
 ├── ubuntu_22_04_template.sh
 └── README.md
@@ -19,6 +20,7 @@ scripts-template-cloud-init/
 | `ubuntu_24_04_template.sh` | Cria um template do Ubuntu Server 24.04 (Noble Numbat). | `noble-server-cloudimg-amd64.img` |
 | `ubuntu_22_04_template.sh` | Cria um template do Ubuntu Server 22.04 (Jammy Jellyfish). | `jammy-server-cloudimg-amd64.img` |
 | `debian_13_template.sh` | Cria um template do Debian 13 (Trixie). | `debian-13-generic-amd64.qcow2` |
+| `debian_12_template.sh` | Cria um template do Debian 12 (Bookworm). | `debian-12-generic-amd64.qcow2` |
 
 ### 1. `ubuntu_24_04_template.sh`
 
