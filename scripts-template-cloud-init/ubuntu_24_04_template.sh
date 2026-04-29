@@ -74,7 +74,7 @@ while true; do
 done
 
 # 2. Pergunta o Nome da VM
-read -p "Digite o Nome para o Template (ex: ubuntu-24.04-template): " VM_NAME
+read -p "Digite o Nome para o Template (ex: ubuntu-24-04-template): " VM_NAME
 
 # 3. Lista Storages disponíveis e pergunta onde alocar
 echo -e "\nStorages disponíveis:"
