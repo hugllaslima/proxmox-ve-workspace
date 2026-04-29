@@ -13,6 +13,7 @@ scripts-template-cloud-init/
 ├── rocky_linux_9_template.sh
 ├── ubuntu_22_04_template.sh
 ├── ubuntu_24_04_template.sh
+├── ubuntu_26_04_template.sh
 └── README.md
 ```
 
@@ -20,6 +21,7 @@ scripts-template-cloud-init/
 
 | Script | Descrição | Imagem Base |
 | :--- | :--- | :--- |
+| `ubuntu_26_04_template.sh` | Cria um template do Ubuntu Server 26.04 LTS (Resolute Raccoon). | `resolute-server-cloudimg-amd64.img` |
 | `ubuntu_22_04_template.sh` | Cria um template do Ubuntu Server 22.04 (Jammy Jellyfish). | `jammy-server-cloudimg-amd64.img` |
 | `ubuntu_24_04_template.sh` | Cria um template do Ubuntu Server 24.04 (Noble Numbat). | `noble-server-cloudimg-amd64.img` |
 | `debian_11_template.sh` | Cria um template do Debian 11 (Bullseye). | `debian-11-generic-amd64.qcow2` |
@@ -78,7 +80,32 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela para configurar o template.
 
-### 3. `debian_13_template.sh`
+### 3. `ubuntu_26_04_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) Ubuntu 26.04 LTS (Resolute Raccoon) utilizando Cloud-Init no Proxmox VE.
+
+- **Quando Utilizar**:
+  Ideal para provisionar rapidamente um template base do novíssimo Ubuntu 26.04 LTS pronto para ser clonado e configurado via Cloud-Init.
+
+- **Recursos Principais**:
+  - Download automático da imagem diária oficial `resolute-server-cloudimg-amd64.img`.
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware necessárias para o Cloud-Init.
+  - Instruções de pós-instalação para comandos `apt` e limpeza do sistema.
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x ubuntu_26_04_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./ubuntu_26_04_template.sh
+     ```
+  3. Siga as instruções interativas na tela.
+
+### 4. `debian_13_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Debian 13 (Trixie) utilizando Cloud-Init no Proxmox VE. 
@@ -103,7 +130,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 4. `debian_12_template.sh`
+### 5. `debian_12_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Debian 12 (Bookworm) utilizando Cloud-Init no Proxmox VE. 
@@ -128,7 +155,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 5. `debian_11_template.sh`
+### 6. `debian_11_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Debian 11 (Bullseye) utilizando Cloud-Init no Proxmox VE. 
@@ -153,7 +180,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 6. `rocky_linux_9_template.sh`
+### 7. `rocky_linux_9_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Rocky Linux 9 utilizando Cloud-Init no Proxmox VE. 
@@ -178,7 +205,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 7. `alma_linux_9_template.sh`
+### 8. `alma_linux_9_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) AlmaLinux 9 utilizando Cloud-Init no Proxmox VE. 
