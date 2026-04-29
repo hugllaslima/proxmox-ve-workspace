@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: traefik-gateway-controller
+rules:
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["gatewayclasses", "gateways", "httproutes", "referencegrants", "tcproutes", "tlsroutes", "grpcroutes", "backendtlspolicies"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["gatewayclasses/status", "gateways/status", "httproutes/status"]
+    verbs: ["update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: traefik-gateway-controller-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik-gateway-controller
+subjects:
+  - kind: ServiceAccount
+    name: traefik
+    namespace: networking   # Ajuste para o namespace onde o Traefik está instalado.

@@ -1,0 +1,17 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: cluster-gateway
+  namespace: networking
+  annotations:
+    # Vincula o Gateway ao entryPoint 'web' (porta 80) do Traefik
+    traefik.io/gateway.entrypoints: web
+spec:
+  gatewayClassName: traefik
+  listeners:
+  - name: web
+    protocol: HTTP
+    port: 8000 # Porta interna que o Traefik escuta no container
+    allowedRoutes:
+      namespaces:
+        from: All # Permite rotas de qualquer namespace (seguro para laboratório)

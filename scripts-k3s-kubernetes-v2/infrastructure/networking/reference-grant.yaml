@@ -1,0 +1,14 @@
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-gateway-traffic
+  namespace: my-app-namespace # Onde a aplicação está
+spec:
+  from:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    namespace: networking # Onde o Gateway está
+  to:
+  - group: ""
+    kind: Service
+    name: my-app-service # O nome do Service da sua aplicação
