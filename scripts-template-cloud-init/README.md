@@ -185,8 +185,9 @@ Recomendamos seguir os passos abaixo diretamente na interface web (GUI) do Proxm
      # ou
      sudo dnf install qemu-guest-agent -y
      ```
-5. **Limpeza do Histórico**: Antes de desligar a VM, limpe o histórico de comandos do terminal para que o template fique limpo e não repasse seu histórico para as futuras VMs clonadas:
+5. **Limpeza de Logs e Histórico**: Antes de desligar a VM, limpe os logs do sistema e o histórico de comandos do terminal para que o template fique "virgem" e não repasse lixo ou histórico para as futuras VMs clonadas:
    ```bash
+   sudo truncate -s 0 /var/log/*log
    history -c && history -w
    ```
 6. **Prepare para Template**: Desligue a VM (`sudo poweroff` ou via Proxmox).
