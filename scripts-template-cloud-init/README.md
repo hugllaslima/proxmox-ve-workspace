@@ -17,6 +17,7 @@ Os scripts provisionam automaticamente os recursos de hardware das máquinas vir
 | **Debian 13** (`debian_13_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Oracle Linux 8** (`oracle_linux_8_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Oracle Linux 9** (`oracle_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Red Hat Enterprise Linux 8** (`rhel_8_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Red Hat Enterprise Linux 9** (`rhel_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Rocky Linux 9** (`rocky_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Ubuntu 20.04** (`ubuntu_20_04_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
@@ -39,6 +40,7 @@ scripts-template-cloud-init/
 ├── debian_13_template.sh
 ├── oracle_linux_8_template.sh
 ├── oracle_linux_9_template.sh
+├── rhel_8_template.sh
 ├── rhel_9_template.sh
 ├── rocky_linux_9_template.sh
 ├── ubuntu_20_04_template.sh
@@ -61,6 +63,7 @@ scripts-template-cloud-init/
 | `debian_13_template.sh` | Cria um template do Debian 13 (Trixie). | `debian-13-generic-amd64.qcow2` |
 | `oracle_linux_8_template.sh` | Cria um template do Oracle Linux 8. | `OL8U9_x86_64-kvm-b166.qcow2` |
 | `oracle_linux_9_template.sh` | Cria um template do Oracle Linux 9. | `OL9U4_x86_64-kvm-b183.qcow2` |
+| `rhel_8_template.sh` | Cria um template do Red Hat Enterprise Linux 8. | `rhel-8.9-x86_64-kvm.qcow2` |
 | `rhel_9_template.sh` | Cria um template do Red Hat Enterprise Linux 9. | `rhel-9.4-x86_64-kvm.qcow2` |
 | `rocky_linux_9_template.sh` | Cria um template do Rocky Linux 9. | `Rocky-9-GenericCloud.latest.x86_64.qcow2` |
 | `ubuntu_20_04_template.sh` | Cria um template do Ubuntu Server 20.04 (Focal Fossa). | `focal-server-cloudimg-amd64.img` |
@@ -293,7 +296,32 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 10. `rhel_9_template.sh`
+### 10. `rhel_8_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) Red Hat Enterprise Linux 8 utilizando Cloud-Init no Proxmox VE. 
+
+- **Quando Utilizar**:
+  Sempre que precisar provisionar um ambiente Enterprise Linux corporativo oficial para produção baseado na versão 8.
+
+- **Recursos Principais**:
+  - Tenta o download automático da imagem (pode requerer download manual dependendo da sua conta/token Red Hat).
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware para o Cloud-Init.
+  - Instruções integradas (com comandos `dnf` e `subscription-manager`) de pré-configuração (GUI).
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x rhel_8_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./rhel_8_template.sh
+     ```
+  3. Siga as instruções interativas na tela.
+
+### 11. `rhel_9_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Red Hat Enterprise Linux 9 utilizando Cloud-Init no Proxmox VE. 
@@ -318,7 +346,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 11. `rocky_linux_9_template.sh`
+### 12. `rocky_linux_9_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Rocky Linux 9 utilizando Cloud-Init no Proxmox VE. 
@@ -343,7 +371,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 12. `ubuntu_20_04_template.sh`
+### 13. `ubuntu_20_04_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Ubuntu 20.04 (Focal Fossa) utilizando Cloud-Init no Proxmox VE.
@@ -368,7 +396,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 13. `ubuntu_22_04_template.sh`
+### 14. `ubuntu_22_04_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Ubuntu 22.04 (Jammy Jellyfish) utilizando Cloud-Init no Proxmox VE. O script gerencia o download da imagem oficial, criação da VM, importação do disco, configurações de hardware (virtio, boot, serial) e conversão final para template.
@@ -393,7 +421,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela para configurar o template.
 
-### 14. `ubuntu_24_04_template.sh`
+### 15. `ubuntu_24_04_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Ubuntu 24.04 (Noble Numbat) utilizando Cloud-Init no Proxmox VE.
@@ -418,7 +446,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela para configurar o template.
 
-### 15. `ubuntu_26_04_template.sh`
+### 16. `ubuntu_26_04_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Ubuntu 26.04 LTS (Resolute Raccoon) utilizando Cloud-Init no Proxmox VE.
