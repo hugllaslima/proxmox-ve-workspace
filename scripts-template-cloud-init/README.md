@@ -9,8 +9,10 @@ Os scripts provisionam automaticamente os recursos de hardware das máquinas vir
 | Sistema Operacional (Família de Scripts) | Núcleos de CPU (vCores) Alocados | Memória RAM Padrão | Espaço de Armazenamento Sugerido (Interativo) |
 | :--- | :--- | :--- | :--- |
 | **Alpine Linux** (`alpine_linux_template.sh`) | 1 vCPU | 1 GB (1024 MB) | 5 GB |
+| **CentOS Stream 9** (`centos_stream_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Debian** (Todas as versões: 10, 11, 12, 13) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Ubuntu** (Todas as versões: 20, 22, 24, 26) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Red Hat Enterprise Linux 9** (`rhel_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **AlmaLinux 9** (`alma_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Rocky Linux 9** (`rocky_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 
@@ -21,6 +23,7 @@ Os scripts provisionam automaticamente os recursos de hardware das máquinas vir
 ```text
 scripts-template-cloud-init/
 ├── alpine_linux_template.sh
+├── centos_stream_9_template.sh
 ├── debian_10_template.sh
 ├── debian_11_template.sh
 ├── debian_12_template.sh
@@ -31,6 +34,7 @@ scripts-template-cloud-init/
 ├── ubuntu_26_04_template.sh
 ├── alma_linux_9_template.sh
 ├── rocky_linux_9_template.sh
+├── rhel_9_template.sh
 └── README.md
 ```
 
@@ -39,6 +43,7 @@ scripts-template-cloud-init/
 | Script | Descrição | Imagem Base |
 | :--- | :--- | :--- |
 | `alpine_linux_template.sh` | Cria um template do Alpine Linux (leve/rápido). | `nocloud_alpine-3.21.2-x86_64-bios-cloudinit-r0.qcow2` |
+| `centos_stream_9_template.sh` | Cria um template do CentOS Stream 9. | `CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2` |
 | `debian_10_template.sh` | Cria um template do Debian 10 (Buster). | `debian-10-generic-amd64.qcow2` |
 | `debian_11_template.sh` | Cria um template do Debian 11 (Bullseye). | `debian-11-generic-amd64.qcow2` |
 | `debian_12_template.sh` | Cria um template do Debian 12 (Bookworm). | `debian-12-generic-amd64.qcow2` |
@@ -47,6 +52,7 @@ scripts-template-cloud-init/
 | `ubuntu_22_04_template.sh` | Cria um template do Ubuntu Server 22.04 (Jammy Jellyfish). | `jammy-server-cloudimg-amd64.img` |
 | `ubuntu_24_04_template.sh` | Cria um template do Ubuntu Server 24.04 (Noble Numbat). | `noble-server-cloudimg-amd64.img` |
 | `ubuntu_26_04_template.sh` | Cria um template do Ubuntu Server 26.04 LTS (Resolute Raccoon). | `resolute-server-cloudimg-amd64.img` |
+| `rhel_9_template.sh` | Cria um template do Red Hat Enterprise Linux 9. | `rhel-9.4-x86_64-kvm.qcow2` |
 | `alma_linux_9_template.sh` | Cria um template do AlmaLinux 9. | `AlmaLinux-9-GenericCloud-latest.x86_64.qcow2` |
 | `rocky_linux_9_template.sh` | Cria um template do Rocky Linux 9. | `Rocky-9-GenericCloud.latest.x86_64.qcow2` |
 
@@ -75,7 +81,32 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 2. `debian_10_template.sh`
+### 2. `centos_stream_9_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) CentOS Stream 9 utilizando Cloud-Init no Proxmox VE. 
+
+- **Quando Utilizar**:
+  Sempre que precisar provisionar rapidamente um ambiente Enterprise Linux que serve como "upstream" para o RHEL 9 (ideal para testar novidades do ecossistema Red Hat).
+
+- **Recursos Principais**:
+  - Download automático da imagem oficial genérica `CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2`.
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware para o Cloud-Init.
+  - Instruções integradas (com comandos `dnf`) de pré-configuração (GUI).
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x centos_stream_9_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./centos_stream_9_template.sh
+     ```
+  3. Siga as instruções interativas na tela.
+
+### 3. `debian_10_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Debian 10 (Buster) utilizando Cloud-Init no Proxmox VE. 
@@ -100,7 +131,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 3. `debian_11_template.sh`
+### 4. `debian_11_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Debian 11 (Bullseye) utilizando Cloud-Init no Proxmox VE. 
@@ -125,7 +156,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 4. `debian_12_template.sh`
+### 5. `debian_12_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Debian 12 (Bookworm) utilizando Cloud-Init no Proxmox VE. 
@@ -150,7 +181,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 5. `debian_13_template.sh`
+### 6. `debian_13_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Debian 13 (Trixie) utilizando Cloud-Init no Proxmox VE. 
@@ -175,7 +206,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 6. `ubuntu_20_04_template.sh`
+### 7. `ubuntu_20_04_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Ubuntu 20.04 (Focal Fossa) utilizando Cloud-Init no Proxmox VE.
@@ -200,7 +231,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 7. `ubuntu_22_04_template.sh`
+### 8. `ubuntu_22_04_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Ubuntu 22.04 (Jammy Jellyfish) utilizando Cloud-Init no Proxmox VE. O script gerencia o download da imagem oficial, criação da VM, importação do disco, configurações de hardware (virtio, boot, serial) e conversão final para template.
@@ -225,7 +256,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela para configurar o template.
 
-### 8. `ubuntu_24_04_template.sh`
+### 9. `ubuntu_24_04_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Ubuntu 24.04 (Noble Numbat) utilizando Cloud-Init no Proxmox VE.
@@ -250,7 +281,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela para configurar o template.
 
-### 9. `ubuntu_26_04_template.sh`
+### 10. `ubuntu_26_04_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Ubuntu 26.04 LTS (Resolute Raccoon) utilizando Cloud-Init no Proxmox VE.
@@ -275,7 +306,32 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 10. `alma_linux_9_template.sh`
+### 11. `rhel_9_template.sh`
+
+- **Função**:
+  Automatiza a criação de um template de máquina virtual (VM) Red Hat Enterprise Linux 9 utilizando Cloud-Init no Proxmox VE. 
+
+- **Quando Utilizar**:
+  Sempre que precisar provisionar rapidamente um ambiente Enterprise Linux corporativo oficial para produção.
+
+- **Recursos Principais**:
+  - Tenta o download automático da imagem (pode requerer download manual dependendo da sua conta/token Red Hat).
+  - Configuração interativa do ID, Nome, Storage e Tamanho do disco da VM.
+  - Ajuste automático das configurações de hardware para o Cloud-Init.
+  - Instruções integradas (com comandos `dnf` e `subscription-manager`) de pré-configuração (GUI).
+
+- **Como Utilizar**:
+  1. **Tornar o script executável**:
+     ```bash
+     chmod +x rhel_9_template.sh
+     ```
+  2. **Executar no nó Proxmox**:
+     ```bash
+     ./rhel_9_template.sh
+     ```
+  3. Siga as instruções interativas na tela.
+
+### 12. `alma_linux_9_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) AlmaLinux 9 utilizando Cloud-Init no Proxmox VE. 
@@ -300,7 +356,7 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
-### 11. `rocky_linux_9_template.sh`
+### 13. `rocky_linux_9_template.sh`
 
 - **Função**:
   Automatiza a criação de um template de máquina virtual (VM) Rocky Linux 9 utilizando Cloud-Init no Proxmox VE. 
@@ -355,8 +411,9 @@ Recomendamos seguir os passos abaixo diretamente na interface web (GUI) do Proxm
      ```bash
      sudo apt update && sudo apt install qemu-guest-agent -y
      ```
-   - Para distros baseadas em **RedHat/AlmaLinux/Rocky Linux**:
+   - Para distros baseadas em **RedHat/AlmaLinux/Rocky Linux/CentOS Stream**:
      Atenção: nestas distribuições é recomendável atualizar todo o sistema antes de gerar o template.
+     Se for RHEL, lembre-se de registrar a máquina com o `subscription-manager` primeiro.
      ```bash
      sudo dnf update -y
      sudo dnf install qemu-guest-agent -y
