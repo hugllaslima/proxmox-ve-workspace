@@ -6,13 +6,13 @@ Este diretório contém scripts para automatizar a criação de templates de má
 
 Os scripts provisionam automaticamente os recursos de hardware das máquinas virtuais no momento da criação. Abaixo estão os valores definidos em código (exceto o disco, que é sugerido e pode ser alterado durante a execução interativa do script):
 
-| Sistema Operacional | CPU (Cores) | Memória RAM | Armazenamento Sugerido |
-| :--- | :---: | :---: | :---: |
-| **Alpine Linux** | 1 vCPU | 1 GB | 5 GB |
-| **Debian (Todas as versões)** | 2 vCPU | 2 GB | 20 GB |
-| **Ubuntu (Todas as versões)** | 2 vCPU | 2 GB | 20 GB |
-| **AlmaLinux 9** | 2 vCPU | 2 GB | 20 GB |
-| **Rocky Linux 9** | 2 vCPU | 2 GB | 20 GB |
+| Sistema Operacional (Família de Scripts) | Núcleos de CPU (vCores) alocados | Memória RAM Padrão | Espaço de Armazenamento Sugerido (Interativo) |
+| :--- | :--- | :--- | :--- |
+| **Alpine Linux** (`alpine_linux_template.sh`) | 1 vCPU | 1 GB (1024 MB) | 5 GB |
+| **Debian** (Todas as versões: 10, 11, 12, 13) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Ubuntu** (Todas as versões: 20, 22, 24, 26) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **AlmaLinux 9** (`alma_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Rocky Linux 9** (`rocky_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 
 ---
 
