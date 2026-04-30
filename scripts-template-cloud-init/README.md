@@ -2,7 +2,21 @@
 
 Este diretório contém scripts para automatizar a criação de templates de máquinas virtuais (VMs) utilizando Cloud-Init no Proxmox VE.
 
-## � Estrutura de Diretórios
+## ⚙️ Configuração Padrão de Hardware
+
+Os scripts provisionam automaticamente os recursos de hardware das máquinas virtuais no momento da criação. Abaixo estão os valores definidos em código (exceto o disco, que é sugerido e pode ser alterado durante a execução interativa do script):
+
+| Sistema Operacional | CPU (Cores) | Memória RAM | Armazenamento Sugerido |
+| :--- | :---: | :---: | :---: |
+| **Alpine Linux** | 1 vCPU | 1 GB | 5 GB |
+| **Debian (Todas as versões)** | 2 vCPU | 2 GB | 20 GB |
+| **Ubuntu (Todas as versões)** | 2 vCPU | 2 GB | 20 GB |
+| **AlmaLinux 9** | 2 vCPU | 2 GB | 20 GB |
+| **Rocky Linux 9** | 2 vCPU | 2 GB | 20 GB |
+
+---
+
+## 📂 Estrutura de Diretórios
 
 ```text
 scripts-template-cloud-init/
