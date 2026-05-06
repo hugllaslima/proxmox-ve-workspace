@@ -30,7 +30,7 @@ Os scripts provisionam automaticamente os recursos de hardware das máquinas vir
 Se você desejar que o template seja criado com valores diferentes de CPU e Memória, basta abrir o script desejado com um editor de texto (ex: `nano script.sh`) e alterar os valores `2048` e `2` na linha que contém o comando de criação. Exemplo:
 
 ```bash
- qm create $VM_ID --name "$VM_NAME" --memory 4096 --cores 4 
+ qm create $VM_ID --name "$VM_NAME" --memory 4096 --cores 4 ...
 ```
 
 ## 📂 Estrutura de Diretórios
