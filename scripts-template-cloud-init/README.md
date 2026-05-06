@@ -6,7 +6,7 @@ Este diretório contém scripts para automatizar a criação de templates de má
 
 Os scripts provisionam automaticamente os recursos de hardware das máquinas virtuais no momento da criação. Abaixo estão os valores definidos em código (exceto o disco, que é sugerido e pode ser alterado durante a execução interativa do script):
 
-| Sistema Operacional (Família de Scripts) | Núcleos de CPU (vCores) Alocados | Memória RAM Padrão | Espaço de Armazenamento Sugerido (Interativo) |
+| Sistema Operacional (Família de Scripts) | Núcleos de vCPU (vCores) Alocados | Memória RAM Padrão | Espaço de Armazenamento Sugerido (Interativo) |
 | :--- | :--- | :--- | :--- |
 | **Alma Linux 9** (`alma_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Alpine Linux** (`alpine_linux_template.sh`) | 1 vCPU | 1 GB (1024 MB) | 5 GB |
