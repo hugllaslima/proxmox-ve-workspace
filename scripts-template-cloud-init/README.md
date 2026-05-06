@@ -25,7 +25,13 @@ Os scripts provisionam automaticamente os recursos de hardware das máquinas vir
 | **Ubuntu 24.04** (`ubuntu_24_04_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 | **Ubuntu 26.04** (`ubuntu_26_04_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 
----
+## 🔧 Como alterar CPU e Memória
+
+Se você desejar que o template seja criado com valores diferentes de CPU e Memória, basta abrir o script desejado com um editor de texto (ex: `nano script.sh`) e alterar os valores `2048` e `2` na linha que contém o comando de criação. Exemplo:
+
+```bash
+ `qm create $VM_ID --name "$VM_NAME" --memory 4096 --cores 4 ...`
+```
 
 ## 📂 Estrutura de Diretórios
 
@@ -496,7 +502,12 @@ Recomendamos seguir os passos abaixo diretamente na interface web (GUI) do Proxm
    - **Upgrade Packages**: Se você quiser atualizar os pacotes da VM quando for convertida em template, marque esta opção. Caso contrário, deixe desmarcado.
    - **IP Config**: Geralmente deixamos em `DHCP` para que a VM receba um IP novo quando clonada.
 3. ⚠️ **ATENÇÃO** ⚠️: Clique no botão **Regenerate Image** (no topo) para salvar as configurações do Cloud-Init no disco virtual.
-4. **Instalação do QEMU Guest Agent**: Ligue a VM, acesse o Console e rode o comando de instalação para garantir comunicação perfeita com o Proxmox.
+4. **Redimensionamento de Disco (Opcional)**: Se o tamanho do disco sugerido na execução do script não for suficiente, você pode aumentá-lo agora:
+   - Vá na aba **Hardware** da VM.
+   - Selecione o **Hard Disk (virtio0)**.
+   - Clique em **Disk Action** (no menu superior) e depois em **Resize**.
+   - Insira quantos Gigabytes (GB) você quer adicionar (ex: para ir de 20GB para 50GB, digite `30`). O Cloud-Init expandirá a partição automaticamente no primeiro boot!
+5. **Instalação do QEMU Guest Agent**: Ligue a VM, acesse o Console e rode o comando de instalação para garantir comunicação perfeita com o Proxmox.
    - Para distros baseadas em **Debian/Ubuntu**:
      ```bash
      sudo apt update && sudo apt install qemu-guest-agent -y
@@ -512,16 +523,16 @@ Recomendamos seguir os passos abaixo diretamente na interface web (GUI) do Proxm
      O Alpine usa o gerenciador de pacotes `apk` e o sistema de inicialização `OpenRC`.
      ```bash
      sudo apk update && sudo apk add qemu-guest-agent
-     sudo rc-update add qemu-guest-agent
-     ```
-5. **Limpeza de Logs e Histórico**: Antes de desligar a VM, limpe os logs do sistema e o histórico de comandos do terminal para que o template fique "virgem" e não repasse lixo ou histórico para as futuras VMs clonadas:
+      sudo rc-update add qemu-guest-agent
+      ```
+6. **Limpeza de Logs e Histórico**: Antes de desligar a VM, limpe os logs do sistema e o histórico de comandos do terminal para que o template fique "virgem" e não repasse lixo ou histórico para as futuras VMs clonadas:
    - Para **qualquer distribuição (Debian/Ubuntu/AlmaLinux/Rocky/Alpine/Oracle)**:
      ```bash
      sudo truncate -s 0 /var/log/*.log
      history -c && history -w
      ```
-6. **Prepare para Template**: Desligue a VM (`sudo poweroff` ou via Proxmox).
-7. **Conversão**: Clique com o botão direito na VM e selecione **Convert to Template**.
+7. **Prepare para Template**: Desligue a VM (`sudo poweroff` ou via Proxmox).
+8. **Conversão**: Clique com o botão direito na VM e selecione **Convert to Template**.
 
 ---
 
