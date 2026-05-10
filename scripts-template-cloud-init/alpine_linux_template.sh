@@ -143,7 +143,7 @@ else
     echo -e "--------------------------------------------------------------------------------------"
     echo -e "1. Selecione a VM criada (${GREEN}$VM_ID${NC}) e vá até a aba ${GREEN}Cloud-Init${NC}."
     echo -e "2. Preencha os campos conforme necessário:"
-    echo -e "   - ${GREEN}User${NC}: alpine (O usuário padrão do Alpine Linux Cloud Image)"
+    echo -e "   - ${GREEN}User${NC}: alpine (O usuário padrão adotado em provedores de nuvem para a Alpine Linux)"
     echo -e "   - ${GREEN}Password${NC}: sua_senha (Senha do Servidor)"
     echo -e "   - ${GREEN}SSH Public Key${NC}: Cole sua chave id_rsa.pub (Se for mais de uma, cole uma abaixo da outra)"
     echo -e "   - ${GREEN}IP Config${NC}: Geralmente deixamos em DHCP para o template"
