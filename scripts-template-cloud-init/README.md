@@ -497,7 +497,12 @@ Recomendamos seguir os passos abaixo diretamente na interface web (GUI) do Proxm
 
 1. **Acesse as opções Cloud-Init**: Selecione a VM criada (ex: `9004`) e vá até a aba **Cloud-Init**.
 2. **Preencha os campos conforme necessário**:
-   - **User**: O nome do usuário principal que será criado nas futuras VMs clonadas. Você pode colocar qualquer nome que quiser (ex: `admin`, `seu_nome`, `nome_da_distro`). Como *exemplo padrão*, as imagens costumam usar o nome da distro: `debian`, `ubuntu`, `rocky`, `almalinux`, `opc` ou `alpine`.
+   - **User**: O nome do usuário principal que será criado nas futuras VMs clonadas. Você pode colocar qualquer nome que quiser (ex: `admin`, `seu_nome`). No entanto, se você deseja manter a compatibilidade com o padrão adotado em provedores de nuvem pública (como a AWS), sugerimos os seguintes usuários padrão:
+     - **Ubuntu**: `ubuntu`
+     - **Debian**: `debian`
+     - **Família Red Hat (RHEL, AlmaLinux, Rocky, CentOS)**: `cloud-user`
+     - **Oracle Linux**: `opc`
+     - **Alpine Linux**: `alpine`
    - **Password**: *sua_senha_forte* (senha de root/administrador do servidor).
    - **DNS Domain**: O domínio DNS que será usado para a VM (ex: `example.com` ou `domain.local`). Pode deixar em branco para usar o domínio padrão.
    - **DNS Servers**: Os servidores DNS que serão usados para a VM (ex: `8.8.8.8`, `1.1.1.1`). Pode deixar em branco para usar os servidores DNS padrão do Proxmox VE.
