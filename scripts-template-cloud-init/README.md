@@ -488,6 +488,9 @@ scripts-template-cloud-init/
 
 ## 🛠️ Configurações Manuais Pós-Script (Opcional)
 
+> 💡 **Como o Cloud-Init gerencia usuários nesses scripts?**
+> Os scripts desta suíte **não injetam usuários, senhas ou chaves SSH** via código. Eles apenas preparam o hardware virtual e anexam o drive do Cloud-Init. Deixamos o template o mais genérico possível para que você possa definir credenciais diferentes para cada VM clonada. As configurações de usuário devem ser feitas diretamente na aba **Cloud-Init** do Proxmox, conforme os passos abaixo.
+
 Se durante a execução interativa do script você optar por **NÃO** converter a VM em template imediatamente (respondendo `n` ou `N`), você terá a oportunidade de personalizar dados do Cloud-Init e instalar pacotes essenciais antes de convertê-la manualmente.
 
 Recomendamos seguir os passos abaixo diretamente na interface web (GUI) do Proxmox:
