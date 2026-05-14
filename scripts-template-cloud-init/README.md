@@ -53,6 +53,13 @@ scripts-template-cloud-init/
 ├── ubuntu_22_04_template.sh
 ├── ubuntu_24_04_template.sh
 ├── ubuntu_26_04_template.sh
+├── cleanup-images/          # 🧹 Scripts de limpeza pré-template
+│   ├── alpine-version.sh
+│   ├── debian_versions.sh
+│   ├── oracle-versions.sh
+│   ├── rhel_versions.sh
+│   ├── ubuntu_versions.sh
+│   └── README.md
 └── README.md
 ```
 
@@ -477,6 +484,33 @@ scripts-template-cloud-init/
      ```
   3. Siga as instruções interativas na tela.
 
+## 🧹 Limpeza e Sanitização Pré-Template
+
+Antes de converter uma VM em template, é **obrigatório** sanitizá-la para garantir que cada clone futuro seja gerado a partir de uma imagem "virgem", sem lixo de logs, histórico de comandos ou conflitos de identidade de máquina.
+
+Para isso, após realizar as configurações manuais descritas na seção anterior, acesse a VM via SSH ou console e **execute o script de limpeza correspondente ao sistema operacional** da sua imagem. Os scripts estão localizados no diretório [`cleanup-images/`](./cleanup-images/):
+
+| Script | Sistema Operacional |
+| :--- | :--- |
+| `cleanup-images/alpine-version.sh` | Alpine Linux |
+| `cleanup-images/debian_versions.sh` | Debian |
+| `cleanup-images/oracle-versions.sh` | Oracle Linux |
+| `cleanup-images/rhel_versions.sh` | RHEL, AlmaLinux, Rocky Linux e CentOS |
+| `cleanup-images/ubuntu_versions.sh` | Ubuntu |
+
+Cada script realiza automaticamente as seguintes etapas e **desliga a VM ao final**:
+
+- 📦 Instalação e habilitação do `qemu-guest-agent`.
+- 🗑️ Limpeza dos logs do sistema e do Cloud-Init.
+- 🕒 Remoção do histórico de comandos do shell.
+- 🔄 Reset do `machine-id` para evitar conflitos de IP nos clones.
+
+> 💡 Consulte o [`cleanup-images/README.md`](./cleanup-images/README.md) para mais detalhes e instruções de uso.
+
+Após a VM ser desligada pelo script, você pode convertê-la com segurança em template via **botão direito → Convert to Template** no Proxmox.
+
+---
+
 ## 🛡️ Pré-requisitos
 
 - **Sistema Operacional**: Proxmox VE.
@@ -515,32 +549,10 @@ Recomendamos seguir os passos abaixo diretamente na interface web (GUI) do Proxm
    - Selecione o **Hard Disk (virtio0)**.
    - Clique em **Disk Action** (no menu superior) e depois em **Resize**.
    - Insira quantos Gigabytes (GB) você quer adicionar (ex: para ir de 20GB para 50GB, digite `30`). O Cloud-Init expandirá a partição automaticamente no primeiro boot!
-5. **Instalação do QEMU Guest Agent**: Ligue a VM, acesse o Console e rode o comando de instalação para garantir comunicação perfeita com o Proxmox.
-   - Para distros baseadas em **Debian/Ubuntu**:
-     ```bash
-     sudo apt update && sudo apt install qemu-guest-agent -y
-     ```
-   - Para distros baseadas em **RedHat/AlmaLinux/Rocky Linux/CentOS Stream/Oracle Linux**:
-     Atenção: nestas distribuições é recomendável atualizar todo o sistema antes de gerar o template.
-     Se for RHEL, lembre-se de registrar a máquina com o `subscription-manager` primeiro.
-     ```bash
-     sudo dnf update -y
-     sudo dnf install qemu-guest-agent -y
-     ```
-   - Para o **Alpine Linux**:
-     O Alpine usa o gerenciador de pacotes `apk` e o sistema de inicialização `OpenRC`.
-     ```bash
-     sudo apk update && sudo apk add qemu-guest-agent
-      sudo rc-update add qemu-guest-agent
-      ```
-6. **Limpeza de Logs e Histórico**: Antes de desligar a VM, limpe os logs do sistema e o histórico de comandos do terminal para que o template fique "virgem" e não repasse lixo ou histórico para as futuras VMs clonadas:
-   - Para **qualquer distribuição (Debian/Ubuntu/AlmaLinux/Rocky/Alpine/Oracle)**:
-     ```bash
-     sudo truncate -s 0 /var/log/*.log
-     history -c && history -w
-     ```
-7. **Prepare para Template**: Desligue a VM (`sudo poweroff` ou via Proxmox).
-8. **Conversão**: Clique com o botão direito na VM e selecione **Convert to Template**.
+5. **Instalação do Agent e Limpeza**: Ligue a VM, acesse o Console e execute o **script de limpeza** correspondente ao sistema operacional, disponível em [`cleanup-images/`](./cleanup-images/). Ele irá instalar o `qemu-guest-agent`, limpar os logs, resetar o `machine-id`, apagar o histórico e **desligar a VM automaticamente** ao final.
+
+   > ⚠️ **IMPORTANTE**: Não pule esta etapa! Executar o script de limpeza é fundamental para que os clones do template sejam gerados corretamente, sem conflitos de identidade de rede ou resíduos de configuração.
+6. **Conversão**: Com a VM desligada (o script de limpeza fará isso automaticamente), clique com o botão direito na VM no Proxmox e selecione **Convert to Template**.
 
 ---
 
