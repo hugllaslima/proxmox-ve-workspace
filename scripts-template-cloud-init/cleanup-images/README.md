@@ -19,7 +19,7 @@ Utilize o script adequado de acordo com a imagem do sistema operacional da sua m
 | `alpine-version.sh` | **Alpine Linux** | Instala via `apk`, configura o OpenRC e limpa cache/logs. |
 | `debian_versions.sh` | **Debian** | Usa `apt`, limpa cache, logs e reseta o `machine-id`. |
 | `oracle-versions.sh` | **Oracle Linux** | Usa `dnf`, limpa cache, logs e reseta o `machine-id`. |
-| `rhel_versions.sh` | **RHEL, AlmaLinux, Rocky Linux** | Usa `dnf`, limpa cache, logs e reseta o `machine-id`. |
+| `rhel_versions.sh` | **RHEL, AlmaLinux, Rocky Linux** e **CentOS** | Usa `dnf`, limpa cache, logs e reseta o `machine-id`. |
 | `ubuntu_versions.sh` | **Ubuntu** | Usa `apt`, limpa cache, logs e reseta o `machine-id`. |
 
 ## 🚀 Como Utilizar
