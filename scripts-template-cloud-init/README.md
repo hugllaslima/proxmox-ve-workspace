@@ -53,7 +53,7 @@ scripts-template-cloud-init/
 ├── ubuntu_22_04_template.sh
 ├── ubuntu_24_04_template.sh
 ├── ubuntu_26_04_template.sh
-├── cleanup-images/          # 🧹 Scripts de limpeza pré-template
+├── cleanup-images/
 │   ├── alpine-version.sh
 │   ├── debian_versions.sh
 │   ├── oracle-versions.sh
