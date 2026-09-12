@@ -601,18 +601,12 @@ EOF
         sed -i 's|^deb |# deb |g' "$enterprise_list"
     fi
 
-    # 5. Desativa repositório Ceph legado (evita erro 404 de versões antigas como ceph-quincy no Trixie)
-    local ceph_list="/etc/apt/sources.list.d/ceph.list"
-    if [ -f "$ceph_list" ]; then
-        print_color $BLUE "▶ Desativando repositórios Ceph legados em $ceph_list..."
-        sed -i 's|^deb |# deb |g' "$ceph_list"
-        log "INFO" "Repositórios Ceph comentados em $ceph_list"
-    fi
-
-    # Garante que qualquer menção a ceph-quincy em /etc/apt/sources.list.d/ seja comentada
+    # 5. Desativa repositórios Ceph legados (evita erro 404 de versões antigas como ceph-quincy no Trixie)
     if [ -d /etc/apt/sources.list.d ]; then
-        grep -rl "ceph-quincy" /etc/apt/sources.list.d/ 2>/dev/null | while read -r f; do
-            sed -i 's|^deb |# deb |g' "$f"
+        print_color $BLUE "▶ Desativando repositórios Ceph legados em /etc/apt/sources.list.d/..."
+        grep -rl "ceph" /etc/apt/sources.list.d/ 2>/dev/null | while read -r f; do
+            sed -i 's|^[[:space:]]*deb |# deb |g' "$f"
+            log "INFO" "Repositório Ceph comentado em $f"
         done
     fi
 
@@ -650,14 +644,10 @@ EOF
     run_pve8to9_check
     create_backup
 
-    # 1. Garante que os pacotes do Proxmox 8.4 estejam no patch mais recente
-    print_color $BLUE "▶ Garantindo que o Proxmox 8.4 atual está atualizado antes da migração..."
-    run_with_spinner "Atualizando pacotes base do Proxmox 8" "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y" true
-
-    # 2. Migra repositórios para Trixie
+    # 1. Migra repositórios para Trixie e desativa repositórios legados (Ceph/Enterprise)
     switch_repositories_to_trixie
 
-    # 3. Executa o Major Upgrade para Proxmox 9
+    # 2. Executa o Major Upgrade para Proxmox 9
     echo ""
     print_color $YELLOW "╔════════════════════════════════════════════════════════════════════════════╗"
     print_color $YELLOW "║ 🚀 INICIANDO INSTALAÇÃO DO PROXMOX VE 9.2 E KERNEL                        ║"
