@@ -53,6 +53,7 @@ Os scripts são organizados em diretórios modulares, cada um com seu próprio `
 | **CI/CD** | [`scripts-self-hosted-runner/`](./scripts-self-hosted-runner) | Configuração de Self-Hosted Runners para GitHub Actions. |
 | **Segurança e Acesso** | [`scripts-ssh/`](./scripts-ssh) | Gerenciamento avançado de chaves SSH com hardening. |
 | **Backups** | [`scripts-backups/`](./scripts-backups) | Backup completo das configurações do Proxmox VE. |
+| **Atualização Proxmox** | [`scripts-proxmox-ve/`](./scripts-proxmox-ve) | Atualização segura de pacotes e repositórios sem subscrição do Proxmox VE. |
 | **Integração Proxmox** | [`scripts-qemu-agent/`](./scripts-qemu-agent) | Instalação do QEMU Guest Agent para comunicação com o host. |
 | **Utilitários Git** | [`scripts-git/`](./scripts-git) | Ferramentas para gerenciamento de contas Github/GitLab e sincronização de branches. |
 | **Utilitários de SO** | [`scripts-zorin-os/`](./scripts-zorin-os) | Scripts específicos para Zorin OS e derivados. |
