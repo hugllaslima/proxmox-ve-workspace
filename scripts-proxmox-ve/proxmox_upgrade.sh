@@ -601,12 +601,19 @@ EOF
         sed -i 's|^deb |# deb |g' "$enterprise_list"
     fi
 
-    # 5. Ajusta repositório Ceph se existir
+    # 5. Desativa repositório Ceph legado (evita erro 404 de versões antigas como ceph-quincy no Trixie)
     local ceph_list="/etc/apt/sources.list.d/ceph.list"
     if [ -f "$ceph_list" ]; then
-        print_color $BLUE "▶ Ajustando repositório Ceph em $ceph_list para Trixie..."
-        sed -i 's/bookworm/trixie/g' "$ceph_list"
-        sed -i 's|^deb https://enterprise.proxmox.com|# deb https://enterprise.proxmox.com|g' "$ceph_list"
+        print_color $BLUE "▶ Desativando repositórios Ceph legados em $ceph_list..."
+        sed -i 's|^deb |# deb |g' "$ceph_list"
+        log "INFO" "Repositórios Ceph comentados em $ceph_list"
+    fi
+
+    # Garante que qualquer menção a ceph-quincy em /etc/apt/sources.list.d/ seja comentada
+    if [ -d /etc/apt/sources.list.d ]; then
+        grep -rl "ceph-quincy" /etc/apt/sources.list.d/ 2>/dev/null | while read -r f; do
+            sed -i 's|^deb |# deb |g' "$f"
+        done
     fi
 
     log "INFO" "Repositórios atualizados para Debian Trixie e Proxmox VE 9"
