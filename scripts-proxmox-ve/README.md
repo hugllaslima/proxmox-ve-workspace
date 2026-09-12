@@ -14,60 +14,66 @@ scripts-proxmox-ve/
 
 ## Compatibilidade
 
-- **Proxmox VE**: 8.x (Debian 12 Bookworm)
+- **Versões Suportadas**: 
+  - **Proxmox VE 8.x** (Debian 12 Bookworm)
+  - **Proxmox VE 9.x** (Debian 13 Trixie)
+- **Upgrade Maior**: Migração segura de **Proxmox VE 8.4 → Proxmox VE 9.2**
 - **Modo de Repositório**: No-Subscription (`pve-no-subscription`)
 
 ---
 
 ### `proxmox_upgrade.sh`
 
-Assistente interativo e resiliente a falhas para atualização completa de pacotes do Proxmox VE e do sistema base Debian.
+Assistente interativo, visual e resiliente a falhas projetado para automação de upgrades maiores de versão e atualizações regulares de pacotes do Proxmox VE e do sistema base Debian.
 
 #### 1. Principais Recursos
 
-1. **Validação de Pré-requisitos:**
-   - Confirmação de execução como usuário `root`.
-   - Detecção automática da versão do Proxmox (`pveversion`) e codename do Debian (`bookworm`).
-   - Verificação de locks ativos do APT/dpkg.
-   - Checagem de espaço livre em disco em `/` e `/var` (mínimo de 4GB recomendados).
-   - Teste de conectividade com os espelhos oficiais do Proxmox.
+1. **Upgrade Maior Automatizado (Proxmox 8.4 → 9.2):**
+   - Executa a ferramenta oficial de verificação prévia de compatibilidade (`pve8to9 --full`).
+   - Migra os repositórios base para o **Debian 13 (Trixie)** e **Proxmox VE 9 No-Subscription**.
+   - Desativa automaticamente arquivos conflitantes legados em `/etc/apt/sources.list.d/` (como versões antigas de `ceph.list` e repositórios enterprise não subscritos).
+   - Realiza a instalação completa do Proxmox 9.2 e do novo kernel Linux com tratamento de interrupções.
 
-2. **Backup Automático Preventivo:**
-   - Salva a base SQLite do cluster Proxmox (`/var/lib/pve-cluster/config.db`).
-   - Copia configurações críticas (`/etc/pve`, `/etc/network/interfaces`, `/etc/hosts`, `/root/.ssh`, `/etc/corosync`).
-   - Exporta inventário de VMs e Containers (`qm list` e `pct list`).
-   - Compacta todo o backup em um arquivo `.tar.gz` datado em `/root/proxmox-config-backup/`.
+2. **Validação Rigorosa de Pré-requisitos:**
+   - Confirmação de execução com privilégios de superusuário (`root`).
+   - Detecção dinâmica da versão do Proxmox (`pveversion`) e codename do Debian.
+   - Verificação de locks ativos do gerenciador de pacotes (`dpkg` / `apt`).
+   - Checagem preventiva de espaço livre em disco em `/` e `/var` (mínimo de 4GB recomendados).
+   - Teste de conectividade com os espelhos oficiais do Proxmox e Debian.
 
-3. **Configuração Correta de Repositórios:**
-   - Desativa repositórios corporativos restritos (`pve-enterprise` e `ceph-enterprise`) em `/etc/apt/sources.list` e `/etc/apt/sources.list.d/pve-enterprise.list`.
-   - Adiciona o repositório oficial sem subscrição (`pve-no-subscription`) para Debian Bookworm.
-   - Garante a presença dos repositórios oficiais do Debian 12 (`bookworm`, `bookworm-updates`, `bookworm-security`).
+3. **Backup Preventivo Abrangente:**
+   - Cópia do banco de dados SQLite do cluster Proxmox (`/var/lib/pve-cluster/config.db`).
+   - Backup de configurações essenciais (`/etc/pve`, `/etc/network/interfaces`, `/etc/hosts`, `/root/.ssh`, `/etc/corosync`).
+   - Exportação de inventário completo de VMs (`qm list`) e Contêineres LXC (`pct list`).
+   - Compactação em arquivo `.tar.gz` datado e organizado em `/root/proxmox-config-backup/`.
 
-4. **Atualização Segura de Pacotes:**
-   - Executa `apt-get dist-upgrade` de forma não-interativa segura.
-   - Realiza limpeza de pacotes obsoletos (`autoremove`) e esvaziamento de cache (`clean`).
+4. **Feedback Visual e Barra Animada de Progresso:**
+   - Indicador visual animado (*spinner*) em tempo real durante operações demoradas.
+   - Cronômetro decorrido `[MM:SS]` na tela.
+   - Exibição dinâmica da última linha de atividade do APT (ex: baixando, descompactando, configurando).
+   - Quadro de aviso prévio com estimativa de tempo para evitar cancelamentos acidentais.
 
 5. **Verificação de Saúde Pós-Atualização:**
-   - Valida se os serviços críticos do Proxmox (`pve-manager`, `pvedaemon`, `pveproxy`, `pvestatd`, `corosync`) estão em execução normal.
-   - Exibe a nova versão do Proxmox VE instalada.
+   - Validação da nova versão instalada via `pveversion`.
+   - Checagem automática e inicialização de serviços críticos (`pve-manager`, `pvedaemon`, `pveproxy`, `pvestatd` e `corosync`).
 
 6. **Gerenciamento Inteligente de Reinicialização (Reboot):**
-   - Compara o kernel Linux atualmente em execução (`uname -r`) com o último kernel instalado em `/boot/`.
-   - Detecta sinalização do sistema em `/var/run/reboot-required`.
-   - Pergunta interativamente ao operador se deseja reiniciar o host de imediato ou adiar.
+   - Comparação do kernel Linux em execução (`uname -r`) com o novo kernel instalado em `/boot/`.
+   - Detecção do gatilho `/var/run/reboot-required`.
+   - Solicitação interativa de reboot com contagem regressiva de segurança (5 segundos) e suporte a cancelamento imediato.
 
 ---
 
 #### 2. Como Utilizar
 
-Execute o script no nó Proxmox VE como `root`:
+No nó Proxmox VE, execute o script como `root`:
 
 ```bash
 chmod +x proxmox_upgrade.sh
 ./proxmox_upgrade.sh
 ```
 
-Ou diretamente através de um comando no terminal:
+Ou diretamente através do caminho completo:
 
 ```bash
 sudo ./scripts-proxmox-ve/proxmox_upgrade.sh
@@ -77,9 +83,9 @@ sudo ./scripts-proxmox-ve/proxmox_upgrade.sh
 
 #### 3. Menu de Opções
 
-Ao iniciar, você terá acesso ao menu:
+Ao iniciar, você terá acesso ao menu interativo:
 
-```
+```text
 1) 🚀 Realizar Upgrade Maior: Proxmox VE 8.4 → 9.2 (Debian Trixie)
 2) 🔄 Atualização Regular de Pacotes (Manter versão atual)
 3) 🔍 Executar Verificação Prévia de Compatibilidade (pve8to9)
@@ -89,3 +95,7 @@ Ao iniciar, você terá acesso ao menu:
 7) 📄 Exibir log da execução atual
 8) 🚪 Sair
 ```
+
+* **Opção 1:** Recomendada para migração completa de versão (Proxmox 8 para Proxmox 9).
+* **Opção 2:** Recomendada para a manutenção periódica e aplicação de patches de segurança no nó após o upgrade.
+* **Opções 3 a 7:** Utilitários modulares para verificações avulsas, backups sob demanda e auditoria de logs.

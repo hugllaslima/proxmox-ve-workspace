@@ -658,11 +658,11 @@ EOF
     run_command "Removendo pacotes obsoletos (autoremove)" "apt-get autoremove -y" false
     run_command "Limpando cache do APT (clean)" "apt-get clean" false
 
-    # 4. Checagem pós-upgrade
+    # 3. Checagem pós-upgrade
     post_update_check
     print_recommendations
 
-    # 5. Reinicialização obrigatória para carregar o Proxmox 9
+    # 4. Reinicialização obrigatória para carregar o Proxmox 9
     echo ""
     print_color $GREEN "🎉 O upgrade para a versão 9.2 foi concluído com sucesso!"
     print_color $YELLOW "🔔 Para inicializar com o novo kernel do Proxmox 9, o servidor deve ser reiniciado."
