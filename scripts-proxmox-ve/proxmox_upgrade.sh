@@ -567,51 +567,45 @@ run_pve8to9_check() {
 
 switch_repositories_to_trixie() {
     print_line
-    print_color $CYAN "🔄 Migrando Repositórios para Debian 13 (Trixie) e Proxmox VE 9..."
+    print_color $CYAN "🔄 Configurando Repositórios Oficiais do Proxmox VE 9 (Debian Trixie)..."
     print_line
 
-    # 1. Backup de segurança com data
-    cp -a /etc/apt/sources.list "/etc/apt/sources.list.backup-pve8-$BACKUP_DATE"
+    # 1. Backup de segurança de todo o diretório /etc/apt
+    local backup_apt_dir="/etc/apt/backup-sources-$BACKUP_DATE"
+    mkdir -p "$backup_apt_dir"
+    cp -a /etc/apt/sources.list "$backup_apt_dir/" 2>/dev/null || true
     if [ -d /etc/apt/sources.list.d ]; then
-        cp -a /etc/apt/sources.list.d "/etc/apt/sources.list.d.backup-pve8-$BACKUP_DATE"
+        cp -a /etc/apt/sources.list.d "$backup_apt_dir/" 2>/dev/null || true
     fi
-    log "INFO" "Backup completo de repositórios do Proxmox 8 criado"
+    log "INFO" "Backup completo de /etc/apt criado em $backup_apt_dir"
 
-    # 2. Configura /etc/apt/sources.list limpo e padronizado para Debian 13 Trixie
-    print_color $BLUE "▶ Configurando /etc/apt/sources.list para Debian Trixie..."
-    cat << EOF > /etc/apt/sources.list
+    # 2. Desativa TODOS os arquivos em /etc/apt/sources.list.d para eliminar 404 (como ceph.list) e 401 (enterprise)
+    if [ -d /etc/apt/sources.list.d ]; then
+        print_color $BLUE "▶ Desativando arquivos conflitantes em /etc/apt/sources.list.d/..."
+        for f in /etc/apt/sources.list.d/*.list; do
+            [ -f "$f" ] || continue
+            mv "$f" "${f}.disabled" 2>> "$LOG_FILE" || true
+            log "INFO" "Desativado arquivo legado: $f -> ${f}.disabled"
+        done
+        print_color $GREEN "✓ Diretório /etc/apt/sources.list.d/ limpo e sem conflitos"
+    fi
+
+    # 3. Configura o /etc/apt/sources.list diretamente com as 4 fontes limpas oficiais
+    print_color $BLUE "▶ Escrevendo fontes limpas do Proxmox 9 em /etc/apt/sources.list..."
+    cat << 'EOF' > /etc/apt/sources.list
 # Repositórios Oficiais Debian 13 (Trixie)
 deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
+
+# Repositório Proxmox VE 9 No-Subscription
+deb http://download.proxmox.com/debian/pve trixie pve-no-subscription
+
+# Atualizações de Segurança Debian 13
 deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
 EOF
 
-    # 3. Garante repositório oficial No-Subscription do Proxmox VE 9
-    local nosub_file="/etc/apt/sources.list.d/pve-no-subscription.list"
-    print_color $BLUE "▶ Configurando repositório pve-no-subscription para Proxmox VE 9 (Trixie)..."
-    cat << EOF > "$nosub_file"
-# Proxmox VE 9 No-Subscription Repository (Debian Trixie)
-deb http://download.proxmox.com/debian/pve trixie pve-no-subscription
-EOF
-
-    # 4. Desativa repositório Enterprise do Proxmox
-    local enterprise_list="/etc/apt/sources.list.d/pve-enterprise.list"
-    if [ -f "$enterprise_list" ]; then
-        print_color $BLUE "▶ Desativando repositório Enterprise em $enterprise_list..."
-        sed -i 's|^deb |# deb |g' "$enterprise_list"
-    fi
-
-    # 5. Desativa repositórios Ceph legados (evita erro 404 de versões antigas como ceph-quincy no Trixie)
-    if [ -d /etc/apt/sources.list.d ]; then
-        print_color $BLUE "▶ Desativando repositórios Ceph legados em /etc/apt/sources.list.d/..."
-        grep -rl "ceph" /etc/apt/sources.list.d/ 2>/dev/null | while read -r f; do
-            sed -i 's|^[[:space:]]*deb |# deb |g' "$f"
-            log "INFO" "Repositório Ceph comentado em $f"
-        done
-    fi
-
-    log "INFO" "Repositórios atualizados para Debian Trixie e Proxmox VE 9"
-    print_color $GREEN "✓ Repositórios migrados com sucesso para Trixie (Proxmox 9 No-Subscription)"
+    log "INFO" "Arquivo /etc/apt/sources.list configurado com as fontes oficiais do Proxmox 9"
+    print_color $GREEN "✓ /etc/apt/sources.list atualizado com sucesso!"
 }
 
 major_upgrade_8_to_9() {
@@ -650,9 +644,9 @@ EOF
     # 2. Executa o Major Upgrade para Proxmox 9
     echo ""
     print_color $YELLOW "╔════════════════════════════════════════════════════════════════════════════╗"
-    print_color $YELLOW "║ 🚀 INICIANDO INSTALAÇÃO DO PROXMOX VE 9.2 E KERNEL                        ║"
+    print_color $YELLOW "║ 🚀 INICIANDO INSTALAÇÃO DO PROXMOX VE 9.2 E KERNEL                         ║"
     print_color $YELLOW "║    • Baixando e instalando pacotes do Proxmox 9 e Debian 13 (Trixie).      ║"
-    print_color $YELLOW "║    • Este processo pode demorar até 30 minutos.                             ║"
+    print_color $YELLOW "║    • Este processo pode demorar até 30 minutos.                            ║"
     print_color $YELLOW "║    • NÃO INTERROMPA nem feche a janela do terminal durante a instalação!   ║"
     print_color $YELLOW "╚════════════════════════════════════════════════════════════════════════════╝"
     echo ""
