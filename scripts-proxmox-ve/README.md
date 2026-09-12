@@ -2,37 +2,51 @@
 
 Este diretório contém scripts para gerenciar, manter e atualizar com segurança o nó do **Proxmox VE**, especialmente para ambientes comunitários que utilizam o repositório oficial sem subscrição (*No-Subscription*).
 
+---
+
 ## Estrutura do Diretório
 
 ```
 scripts-proxmox-ve/
-|-- README.md
-`-- proxmox_upgrade.sh
+├── README.md
+├── proxmox_upgrade_v6_to_v7.sh   ← Upgrade: Proxmox 6.4 → 7.4  (Debian Buster → Bullseye)
+├── proxmox_upgrade_v7_to_v8.sh   ← Upgrade: Proxmox 7.4 → 8.x  (Debian Bullseye → Bookworm)
+└── proxmox_upgrade_v8_to_v9.sh   ← Upgrade: Proxmox 8.4 → 9.2  (Debian Bookworm → Trixie)
 ```
 
 ---
 
-## Compatibilidade
+## Convenção de Nomenclatura
 
-- **Versões Suportadas**: 
-  - **Proxmox VE 8.x** (Debian 12 Bookworm)
-  - **Proxmox VE 9.x** (Debian 13 Trixie)
-- **Upgrade Maior**: Migração segura de **Proxmox VE 8.4 → Proxmox VE 9.2**
-- **Modo de Repositório**: No-Subscription (`pve-no-subscription`)
+Todos os scripts seguem o padrão:
+
+```
+proxmox_upgrade_v{ORIGEM}_to_v{DESTINO}.sh
+```
+
+Isso facilita a identificação, ordenação por listagem (`ls`) e automação futura.
 
 ---
 
-### `proxmox_upgrade.sh`
+## Compatibilidade e Mapeamento de Versões
 
-Assistente interativo, visual e resiliente a falhas projetado para automação de upgrades maiores de versão e atualizações regulares de pacotes do Proxmox VE e do sistema base Debian.
+| Script | Proxmox Origem | Proxmox Destino | Debian Origem | Debian Destino |
+|--------|---------------|-----------------|---------------|----------------|
+| `proxmox_upgrade_v6_to_v7.sh` | 6.4 | 7.4 | Debian 10 Buster | Debian 11 Bullseye |
+| `proxmox_upgrade_v7_to_v8.sh` | 7.4 | 8.x | Debian 11 Bullseye | Debian 12 Bookworm |
+| `proxmox_upgrade_v8_to_v9.sh` | 8.4 | 9.2 | Debian 12 Bookworm | Debian 13 Trixie |
 
-#### 1. Principais Recursos
+- **Modo de Repositório**: No-Subscription (`pve-no-subscription`) — nenhum script requer subscrição paga.
 
-1. **Upgrade Maior Automatizado (Proxmox 8.4 → 9.2):**
-   - Executa a ferramenta oficial de verificação prévia de compatibilidade (`pve8to9 --full`).
-   - Migra os repositórios base para o **Debian 13 (Trixie)** e **Proxmox VE 9 No-Subscription**.
-   - Desativa automaticamente arquivos conflitantes legados em `/etc/apt/sources.list.d/` (como versões antigas de `ceph.list` e repositórios enterprise não subscritos).
-   - Realiza a instalação completa do Proxmox 9.2 e do novo kernel Linux com tratamento de interrupções.
+---
+
+## Principais Recursos (Comuns a todos os scripts)
+
+1. **Upgrade Maior Automatizado:**
+   - Executa a ferramenta oficial de verificação prévia de compatibilidade (`pveXtoY --full`).
+   - Migra os repositórios base para a versão-alvo do Debian e Proxmox VE No-Subscription.
+   - Desativa automaticamente arquivos conflitantes legados em `/etc/apt/sources.list.d/` (como versões antigas de `ceph.list` e repositórios enterprise).
+   - Realiza a instalação completa do novo Proxmox e do novo kernel Linux com tratamento de interrupções.
 
 2. **Validação Rigorosa de Pré-requisitos:**
    - Confirmação de execução com privilégios de superusuário (`root`).
@@ -64,31 +78,40 @@ Assistente interativo, visual e resiliente a falhas projetado para automação d
 
 ---
 
-#### 2. Como Utilizar
+## Como Utilizar
 
-No nó Proxmox VE, execute o script como `root`:
+No nó Proxmox VE, execute o script como `root`. **Escolha o script correto para a sua versão atual**:
 
 ```bash
-chmod +x proxmox_upgrade.sh
-./proxmox_upgrade.sh
+# Upgrade de Proxmox 6.x para 7.x
+chmod +x proxmox_upgrade_v6_to_v7.sh
+./proxmox_upgrade_v6_to_v7.sh
+
+# Upgrade de Proxmox 7.x para 8.x
+chmod +x proxmox_upgrade_v7_to_v8.sh
+./proxmox_upgrade_v7_to_v8.sh
+
+# Upgrade de Proxmox 8.x para 9.x
+chmod +x proxmox_upgrade_v8_to_v9.sh
+./proxmox_upgrade_v8_to_v9.sh
 ```
 
-Ou diretamente através do caminho completo:
+Ou diretamente pelo caminho completo:
 
 ```bash
-sudo ./scripts-proxmox-ve/proxmox_upgrade.sh
+sudo bash ./scripts-proxmox-ve/proxmox_upgrade_v8_to_v9.sh
 ```
 
 ---
 
-#### 3. Menu de Opções
+## Menu de Opções
 
-Ao iniciar, você terá acesso ao menu interativo:
+Ao iniciar qualquer script, você terá acesso ao menu interativo:
 
 ```text
-1) 🚀 Realizar Upgrade Maior: Proxmox VE 8.4 → 9.2 (Debian Trixie)
+1) 🚀 Realizar Upgrade Maior: Proxmox VE X.x → Y.y (Debian <Codename>)
 2) 🔄 Atualização Regular de Pacotes (Manter versão atual)
-3) 🔍 Executar Verificação Prévia de Compatibilidade (pve8to9)
+3) 🔍 Executar Verificação Prévia de Compatibilidade (pveXtoY)
 4) 💾 Apenas criar backup das configurações
 5) ⚙️  Apenas configurar repositórios No-Subscription
 6) ✅ Apenas verificar integridade dos serviços pós-atualização
@@ -96,6 +119,18 @@ Ao iniciar, você terá acesso ao menu interativo:
 8) 🚪 Sair
 ```
 
-* **Opção 1:** Recomendada para migração completa de versão (Proxmox 8 para Proxmox 9).
-* **Opção 2:** Recomendada para a manutenção periódica e aplicação de patches de segurança no nó após o upgrade.
-* **Opções 3 a 7:** Utilitários modulares para verificações avulsas, backups sob demanda e auditoria de logs.
+- **Opção 1:** Recomendada para migração completa de versão.
+- **Opção 2:** Recomendada para manutenção periódica e aplicação de patches de segurança no nó após o upgrade.
+- **Opções 3 a 7:** Utilitários modulares para verificações avulsas, backups sob demanda e auditoria de logs.
+
+---
+
+## Arquivos de Log
+
+Cada execução gera um arquivo de log datado em `/var/log/`:
+
+| Script | Log gerado |
+|--------|-----------|
+| `proxmox_upgrade_v6_to_v7.sh` | `/var/log/proxmox-upgrade-v6-to-v7-YYYYMMDD-HHMMSS.log` |
+| `proxmox_upgrade_v7_to_v8.sh` | `/var/log/proxmox-upgrade-v7-to-v8-YYYYMMDD-HHMMSS.log` |
+| `proxmox_upgrade_v8_to_v9.sh` | `/var/log/proxmox-upgrade-YYYYMMDD-HHMMSS.log` |
