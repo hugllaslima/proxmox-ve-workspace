@@ -111,6 +111,78 @@ run_command() {
     fi
 }
 
+# Executa comando longo com spinner animado, tempo decorrido e feedback visual
+run_with_spinner() {
+    local description="$1"
+    local command="$2"
+    local critical=${3:-true}
+
+    log "INFO" "Executando com monitoramento: $description"
+    print_color $BLUE "▶ $description"
+
+    local spinstr=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local i=0
+    local start_time
+    start_time=$(date +%s)
+
+    # Executa o comando em segundo plano gravando no arquivo de log
+    eval "$command" >> "$LOG_FILE" 2>&1 &
+    local cmd_pid=$!
+
+    # Oculta o cursor durante o progresso
+    tput civis 2>/dev/null || true
+
+    while kill -0 "$cmd_pid" 2>/dev/null; do
+        local now
+        now=$(date +%s)
+        local elapsed=$((now - start_time))
+        local mins=$((elapsed / 60))
+        local secs=$((elapsed % 60))
+        local time_str
+        time_str=$(printf "%02d:%02d" "$mins" "$secs")
+
+        # Captura última linha útil do log para mostrar o que o APT está fazendo
+        local last_action
+        last_action=$(tail -n 1 "$LOG_FILE" 2>/dev/null | tr -d '\r\n' | cut -c 1-42)
+
+        local char="${spinstr[$i]}"
+        i=$(( (i + 1) % ${#spinstr[@]} ))
+
+        printf "\r\033[K%b%s%b [%b%s%b] Processando... (%s)" \
+            "$YELLOW" "$char" "$NC" \
+            "$CYAN" "$time_str" "$NC" \
+            "${last_action:-Aguarde}"
+
+        sleep 0.25
+    done
+
+    # Restaura o cursor
+    tput cnorm 2>/dev/null || true
+    printf "\r\033[K"
+
+    wait "$cmd_pid"
+    local exit_status=$?
+
+    if [ $exit_status -eq 0 ]; then
+        local total_time=$(( $(date +%s) - start_time ))
+        local mins=$((total_time / 60))
+        local secs=$((total_time % 60))
+        print_color $GREEN "✓ $description - Concluído (${mins}m ${secs}s) [OK]"
+        log "INFO" "$description - Concluído com sucesso em ${total_time}s"
+        return 0
+    else
+        ERROR_COUNT=$((ERROR_COUNT + 1))
+        if [ "$critical" = true ]; then
+            log "ERROR" "$description - FALHOU com código $exit_status"
+            error_exit "$description falhou. Verifique o log detalhado: $LOG_FILE"
+        else
+            print_color $YELLOW "⚠ $description - FALHOU (não crítico, continuando)"
+            log "WARN" "$description - Falhou com código $exit_status"
+            return 1
+        fi
+    fi
+}
+
 ################################################################################
 # PRÉ-REQUISITOS E DIAGNÓSTICO
 ################################################################################
@@ -316,7 +388,7 @@ upgrade_system() {
     print_color $CYAN "📦 Atualizando Sistema e Pacotes do Proxmox VE..."
     print_line
 
-    run_command "Atualizando lista de pacotes (apt update)" "apt-get update" true
+    run_with_spinner "Atualizando lista de pacotes dos repositórios (apt update)" "apt-get update" true
 
     # Checa pacotes que podem ser atualizados
     local upgradable_count
@@ -325,13 +397,27 @@ upgrade_system() {
     log "INFO" "Pacotes a serem atualizados: $upgradable_count"
 
     if [ "$upgradable_count" -eq 0 ]; then
+        echo ""
         print_color $GREEN "✓ Todos os pacotes já estão em suas versões mais recentes!"
+        print_color $CYAN "ℹ️  O seu nó Proxmox VE ($CURRENT_VERSION) já possui todos os pacotes atualizados."
+        print_color $CYAN "   Não há novas atualizações disponíveis no repositório No-Subscription no momento."
+        echo ""
         return 0
     fi
 
-    # Executa a atualização completa
-    print_color $YELLOW "⏳ Executando atualização de pacotes (pode demorar alguns minutos)..."
-    run_command "Atualizando pacotes (apt-get dist-upgrade)" \
+    # Mensagem destacada sobre o tempo de execução
+    echo ""
+    print_color $YELLOW "╔════════════════════════════════════════════════════════════════════════════╗"
+    print_color $YELLOW "║ ⏳ AVISO: A atualização de pacotes (dist-upgrade) será iniciada.          ║"
+    print_color $YELLOW "║    • Esta etapa baixa e instala novos pacotes do sistema e novo kernel.   ║"
+    print_color $YELLOW "║    • O processo PODE DEMORAR entre 5 a 20 minutos.                         ║"
+    print_color $YELLOW "║    • Um indicador animado com o tempo decorrido será exibido abaixo.       ║"
+    print_color $YELLOW "║    • Por favor, NÃO cancele nem feche o terminal durante este processo!    ║"
+    print_color $YELLOW "╚════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # Executa a atualização completa com spinner e feedback de tempo
+    run_with_spinner "Atualizando pacotes do sistema (apt-get dist-upgrade)" \
         "DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y" true
 
     # Limpeza de pacotes órfãos e cache
@@ -453,6 +539,161 @@ check_and_handle_reboot() {
 # RECOMENDAÇÕES PÓS-ATUALIZAÇÃO
 ################################################################################
 
+################################################################################
+# MIGRAÇÃO PARA PROXMOX VE 9.x (DEBIAN TRIXIE)
+################################################################################
+
+run_pve8to9_check() {
+    print_line
+    print_color $CYAN "🔍 Executando Verificação Prévia de Compatibilidade (pve8to9)..."
+    print_line
+
+    if command -v pve8to9 &> /dev/null; then
+        print_color $BLUE "▶ Executando checklist oficial 'pve8to9 --full'..."
+        pve8to9 --full | tee -a "$LOG_FILE"
+        local status=${PIPESTATUS[0]}
+        if [ $status -eq 0 ]; then
+            print_color $GREEN "✓ Checklist pve8to9 aprovado sem erros críticos."
+        else
+            print_color $YELLOW "⚠ O pve8to9 reportou avisos ou recomendações (código $status)."
+            if ! confirm "Deseja prosseguir com o upgrade mesmo com os avisos acima?"; then
+                error_exit "Migração cancelada pelo usuário para revisão do pve8to9."
+            fi
+        fi
+    else
+        print_color $YELLOW "ℹ️ O comando 'pve8to9' não está presente no nó. Prosseguindo com verificações padrão..."
+    fi
+}
+
+switch_repositories_to_trixie() {
+    print_line
+    print_color $CYAN "🔄 Migrando Repositórios para Debian 13 (Trixie) e Proxmox VE 9..."
+    print_line
+
+    # 1. Backup de segurança com data
+    cp -a /etc/apt/sources.list "/etc/apt/sources.list.backup-pve8-$BACKUP_DATE"
+    if [ -d /etc/apt/sources.list.d ]; then
+        cp -a /etc/apt/sources.list.d "/etc/apt/sources.list.d.backup-pve8-$BACKUP_DATE"
+    fi
+    log "INFO" "Backup completo de repositórios do Proxmox 8 criado"
+
+    # 2. Configura /etc/apt/sources.list limpo e padronizado para Debian 13 Trixie
+    print_color $BLUE "▶ Configurando /etc/apt/sources.list para Debian Trixie..."
+    cat << EOF > /etc/apt/sources.list
+# Repositórios Oficiais Debian 13 (Trixie)
+deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
+deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+EOF
+
+    # 3. Garante repositório oficial No-Subscription do Proxmox VE 9
+    local nosub_file="/etc/apt/sources.list.d/pve-no-subscription.list"
+    print_color $BLUE "▶ Configurando repositório pve-no-subscription para Proxmox VE 9 (Trixie)..."
+    cat << EOF > "$nosub_file"
+# Proxmox VE 9 No-Subscription Repository (Debian Trixie)
+deb http://download.proxmox.com/debian/pve trixie pve-no-subscription
+EOF
+
+    # 4. Desativa repositório Enterprise do Proxmox
+    local enterprise_list="/etc/apt/sources.list.d/pve-enterprise.list"
+    if [ -f "$enterprise_list" ]; then
+        print_color $BLUE "▶ Desativando repositório Enterprise em $enterprise_list..."
+        sed -i 's|^deb |# deb |g' "$enterprise_list"
+    fi
+
+    # 5. Ajusta repositório Ceph se existir
+    local ceph_list="/etc/apt/sources.list.d/ceph.list"
+    if [ -f "$ceph_list" ]; then
+        print_color $BLUE "▶ Ajustando repositório Ceph em $ceph_list para Trixie..."
+        sed -i 's/bookworm/trixie/g' "$ceph_list"
+        sed -i 's|^deb https://enterprise.proxmox.com|# deb https://enterprise.proxmox.com|g' "$ceph_list"
+    fi
+
+    log "INFO" "Repositórios atualizados para Debian Trixie e Proxmox VE 9"
+    print_color $GREEN "✓ Repositórios migrados com sucesso para Trixie (Proxmox 9 No-Subscription)"
+}
+
+major_upgrade_8_to_9() {
+    print_line
+    print_color $RED "🚀 UPGRADE MAIOR: PROXMOX VE 8.4 → 9.2 (MIGRAÇÃO DE SISTEMA)"
+    print_line
+    cat << 'EOF'
+Este procedimento irá realizar a MIGRAÇÃO COMPLETA:
+  • Validação de pré-requisitos e teste de compatibilidade (pve8to9)
+  • Backup completo das configurações (/etc/pve, cluster SQLite, redes, VMs)
+  • Garantia de que a base 8.4 atual está totalmente atualizada
+  • Migração dos repositórios: Debian 12 (Bookworm) → Debian 13 (Trixie)
+  • Instalação dos pacotes do Proxmox VE 9.2 e novo Kernel Linux
+  • Verificação pós-upgrade e solicitação de reinicialização do servidor
+
+⏳ Tempo estimado: 15 a 35 minutos (dependendo da conexão e disco)
+⚠️  Recomendado: Certifique-se de que não há tarefas críticas em execução.
+EOF
+    print_line
+
+    if ! confirm "Tem certeza que deseja iniciar o Upgrade para Proxmox VE 9.2 agora?"; then
+        log "INFO" "Upgrade maior cancelado pelo usuário"
+        print_color $YELLOW "Operação cancelada."
+        return 0
+    fi
+
+    log "INFO" "Iniciando processo de Upgrade Proxmox 8.4 para 9.2"
+
+    check_prerequisites
+    run_pve8to9_check
+    create_backup
+
+    # 1. Garante que os pacotes do Proxmox 8.4 estejam no patch mais recente
+    print_color $BLUE "▶ Garantindo que o Proxmox 8.4 atual está atualizado antes da migração..."
+    run_with_spinner "Atualizando pacotes base do Proxmox 8" "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y" true
+
+    # 2. Migra repositórios para Trixie
+    switch_repositories_to_trixie
+
+    # 3. Executa o Major Upgrade para Proxmox 9
+    echo ""
+    print_color $YELLOW "╔════════════════════════════════════════════════════════════════════════════╗"
+    print_color $YELLOW "║ 🚀 INICIANDO INSTALAÇÃO DO PROXMOX VE 9.2 E KERNEL                        ║"
+    print_color $YELLOW "║    • Baixando e instalando pacotes do Proxmox 9 e Debian 13 (Trixie).      ║"
+    print_color $YELLOW "║    • Este processo pode demorar até 30 minutos.                             ║"
+    print_color $YELLOW "║    • NÃO INTERROMPA nem feche a janela do terminal durante a instalação!   ║"
+    print_color $YELLOW "╚════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    run_with_spinner "Baixando catálogos do Debian 13 Trixie e Proxmox 9" "apt-get update" true
+    run_with_spinner "Instalando Proxmox VE 9.2 e Kernel (apt-get dist-upgrade)" \
+        "DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y" true
+
+    run_command "Removendo pacotes obsoletos (autoremove)" "apt-get autoremove -y" false
+    run_command "Limpando cache do APT (clean)" "apt-get clean" false
+
+    # 4. Checagem pós-upgrade
+    post_update_check
+    print_recommendations
+
+    # 5. Reinicialização obrigatória para carregar o Proxmox 9
+    echo ""
+    print_color $GREEN "🎉 O upgrade para a versão 9.2 foi concluído com sucesso!"
+    print_color $YELLOW "🔔 Para inicializar com o novo kernel do Proxmox 9, o servidor deve ser reiniciado."
+    echo ""
+
+    if confirm "Deseja reiniciar o servidor Proxmox agora para carregar a versão 9.2?"; then
+        log "INFO" "Usuário autorizou reboot pós-upgrade para Proxmox 9"
+        print_color $RED "⚠️  O servidor será REINICIADO em 5 segundos..."
+        print_color $YELLOW "Pressione Ctrl+C para cancelar imediatamente."
+        sleep 5
+        log "INFO" "Executando comando reboot"
+        reboot
+    else
+        log "INFO" "Reboot adiado pelo usuário"
+        print_color $GREEN "✓ Reinicialização adiada. Para concluir e ativar o Proxmox 9.2, execute quando for conveniente: reboot"
+    fi
+}
+
+################################################################################
+# RECOMENDAÇÕES PÓS-ATUALIZAÇÃO
+################################################################################
+
 print_recommendations() {
     print_line
     print_color $CYAN "📋 Recomendações e Instruções:"
@@ -484,29 +725,58 @@ EOF
 
 show_banner() {
     clear
-    print_color $BLUE "╔════════════════════════════════════════════════════════════════════════════╗"
-    print_color $BLUE "║                                                                            ║"
-    print_color $BLUE "║          🚀 Assistente de Atualização Proxmox VE (No-Subscription)         ║"
-    print_color $BLUE "║                                                                            ║"
-    print_color $BLUE "║  Versão do Script: $SCRIPT_VERSION                                         ║"
-    print_color $BLUE "║  Data/Hora: $(date '+%Y-%m-%d %H:%M:%S')                                   ║"
-    print_color $BLUE "║  Log: $LOG_FILE                                                            ║"
-    print_color $BLUE "║                                                                            ║"
-    print_color $BLUE "╚════════════════════════════════════════════════════════════════════════════╝"
+    local top="╔════════════════════════════════════════════════════════════════════════════╗"
+    local bottom="╚════════════════════════════════════════════════════════════════════════════╝"
+    local empty="║                                                                            ║"
+
+    # Alinha linha à esquerda com padding dinâmico
+    box_line() {
+        local text="$1"
+        local content="  $text"
+        local text_len=${#content}
+        local pad_len=$((76 - text_len))
+        [ $pad_len -lt 0 ] && pad_len=0
+        local padding=$(printf "%*s" "$pad_len" "")
+        print_color $BLUE "║${content}${padding}║"
+    }
+
+    # Centraliza título com emoji (compensando 2 colunas visuais no terminal)
+    box_center() {
+        local text="$1"
+        local text_len=${#text}
+        local visual_len=$((text_len + 1))
+        local pad_total=$((76 - visual_len))
+        local pad_left=$((pad_total / 2))
+        local pad_right=$((pad_total - pad_left))
+        local left_spaces=$(printf "%*s" "$pad_left" "")
+        local right_spaces=$(printf "%*s" "$pad_right" "")
+        print_color $BLUE "║${left_spaces}${text}${right_spaces}║"
+    }
+
+    print_color $BLUE "$top"
+    print_color $BLUE "$empty"
+    box_center "🚀 Assistente de Atualização Proxmox VE (No-Subscription)"
+    print_color $BLUE "$empty"
+    box_line "Versão do Script: $SCRIPT_VERSION"
+    box_line "Data/Hora: $(date '+%Y-%m-%d %H:%M:%S')"
+    box_line "Log: $LOG_FILE"
+    print_color $BLUE "$empty"
+    print_color $BLUE "$bottom"
     echo ""
 }
-echo " "
+
 show_menu() {
     print_line
     print_color $CYAN "Opções Disponíveis:"
     print_line
-    echo "1) Realizar atualização completa do Proxmox VE (Recomendado)"
-    echo "2) Apenas verificar pré-requisitos e status do sistema"
-    echo "3) Apenas criar backup das configurações"
-    echo "4) Apenas configurar repositórios No-Subscription"
-    echo "5) Apenas verificar integridade dos serviços pós-atualização"
-    echo "6) Exibir log da execução atual"
-    echo "7) Sair"
+    echo "1) 🚀 Realizar Upgrade Maior: Proxmox VE 8.4 → 9.2 (Debian Trixie)"
+    echo "2) 🔄 Atualização Regular de Pacotes (Manter versão atual)"
+    echo "3) 🔍 Executar Verificação Prévia de Compatibilidade (pve8to9)"
+    echo "4) 💾 Apenas criar backup das configurações"
+    echo "5) ⚙️  Apenas configurar repositórios No-Subscription"
+    echo "6) ✅ Apenas verificar integridade dos serviços pós-atualização"
+    echo "7) 📄 Exibir log da execução atual"
+    echo "8) 🚪 Sair"
     echo ""
 }
 
@@ -523,63 +793,47 @@ main() {
     log "INFO" "Assistente de Atualização Proxmox VE iniciado"
     log "INFO" "Usuário: $(whoami) | Hostname: $(hostname)"
     log "INFO" "═══════════════════════════════════════════════════════════"
-echo " "
+    echo " "
     while true; do
         show_menu
-        read -r -p "$(echo -e "${YELLOW}➤ Selecione uma opção [1-7]: ${NC}")" option
+        read -r -p "$(echo -e "${YELLOW}➤ Selecione uma opção [1-8]: ${NC}")" option
 
         case "$option" in
             1)
-                print_color $YELLOW "⚠️  ATENÇÃO - Atualização do Proxmox VE"
-                print_line
-                cat << 'EOF'
-O procedimento irá:
-  • Validar pré-requisitos e espaço em disco
-  • Criar backup de segurança das configurações (/etc/pve, redes, APT, cluster)
-  • Configurar repositórios oficiais pve-no-subscription (Debian Bookworm)
-  • Atualizar todos os pacotes do sistema com apt-get dist-upgrade
-  • Verificar integridade dos serviços do Proxmox
-  • Avaliar a necessidade de reboot e solicitar sua autorização
-EOF
-                print_line
-
-                if confirm "Deseja iniciar a atualização completa agora?"; then
-                    log "INFO" "Usuário confirmou atualização completa"
-
-                    check_prerequisites
-                    create_backup
-                    setup_repositories
-                    upgrade_system
-                    post_update_check
-                    print_recommendations
-                    check_and_handle_reboot
-                else
-                    log "INFO" "Atualização cancelada pelo usuário"
-                    print_color $YELLOW "Atualização não realizada."
-                fi
+                major_upgrade_8_to_9
                 ;;
 
             2)
                 check_prerequisites
-                print_color $GREEN "✓ Verificação de pré-requisitos concluída com sucesso."
+                create_backup
+                setup_repositories
+                upgrade_system
+                post_update_check
+                print_recommendations
+                check_and_handle_reboot
                 ;;
 
             3)
+                check_prerequisites
+                run_pve8to9_check
+                ;;
+
+            4)
                 create_backup
                 print_color $GREEN "✓ Backup das configurações concluído."
                 ;;
 
-            4)
+            5)
                 check_prerequisites
                 setup_repositories
-                print_color $GREEN "✓ Repositórios configurados. Execute 'apt update' para atualizar a lista de pacotes."
-                ;;
-
-            5)
-                post_update_check
+                print_color $GREEN "✓ Repositórios No-Subscription configurados com sucesso."
                 ;;
 
             6)
+                post_update_check
+                ;;
+
+            7)
                 if [ -f "$LOG_FILE" ]; then
                     if command -v less &> /dev/null; then
                         less "$LOG_FILE"
@@ -591,14 +845,14 @@ EOF
                 fi
                 ;;
 
-            7)
+            8)
                 log "INFO" "Script finalizado pelo usuário"
                 print_color $CYAN "Até logo!"
                 exit 0
                 ;;
 
             *)
-                print_color $RED "Opção inválida! Digite um número de 1 a 7."
+                print_color $RED "Opção inválida! Digite um número de 1 a 8."
                 ;;
         esac
 
@@ -612,6 +866,6 @@ EOF
 # TRATAMENTO DE SINAIS E INÍCIO
 ################################################################################
 
-trap 'print_color $RED "\n❌ Script interrompido pelo usuário (Ctrl+C)"; log "WARN" "Script interrompido via SIGINT"; exit 130' INT
+trap 'tput cnorm 2>/dev/null || true; print_color $RED "\n❌ Script interrompido pelo usuário (Ctrl+C)"; log "WARN" "Script interrompido via SIGINT"; exit 130' INT
 
 main

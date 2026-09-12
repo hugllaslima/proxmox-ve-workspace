@@ -7,7 +7,7 @@ Este diretório contém scripts para gerenciar, manter e atualizar com seguranç
 ```
 scripts-proxmox-ve/
 |-- README.md
-`-- proxmox-upgrade.sh
+`-- proxmox_upgrade.sh
 ```
 
 ---
@@ -19,7 +19,7 @@ scripts-proxmox-ve/
 
 ---
 
-### `proxmox-upgrade.sh`
+### `proxmox_upgrade.sh`
 
 Assistente interativo e resiliente a falhas para atualização completa de pacotes do Proxmox VE e do sistema base Debian.
 
@@ -63,14 +63,14 @@ Assistente interativo e resiliente a falhas para atualização completa de pacot
 Execute o script no nó Proxmox VE como `root`:
 
 ```bash
-chmod +x proxmox-upgrade.sh
-./proxmox-upgrade.sh
+chmod +x proxmox_upgrade.sh
+./proxmox_upgrade.sh
 ```
 
 Ou diretamente através de um comando no terminal:
 
 ```bash
-sudo ./scripts-proxmox-ve/proxmox-upgrade.sh
+sudo ./scripts-proxmox-ve/proxmox_upgrade.sh
 ```
 
 ---
@@ -80,11 +80,12 @@ sudo ./scripts-proxmox-ve/proxmox-upgrade.sh
 Ao iniciar, você terá acesso ao menu:
 
 ```
-1) Realizar atualização completa do Proxmox VE (Recomendado)
-2) Apenas verificar pré-requisitos e status do sistema
-3) Apenas criar backup das configurações
-4) Apenas configurar repositórios No-Subscription
-5) Apenas verificar integridade dos serviços pós-atualização
-6) Exibir log da execução atual
-7) Sair
+1) 🚀 Realizar Upgrade Maior: Proxmox VE 8.4 → 9.2 (Debian Trixie)
+2) 🔄 Atualização Regular de Pacotes (Manter versão atual)
+3) 🔍 Executar Verificação Prévia de Compatibilidade (pve8to9)
+4) 💾 Apenas criar backup das configurações
+5) ⚙️  Apenas configurar repositórios No-Subscription
+6) ✅ Apenas verificar integridade dos serviços pós-atualização
+7) 📄 Exibir log da execução atual
+8) 🚪 Sair
 ```
