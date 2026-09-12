@@ -495,7 +495,7 @@ show_banner() {
     print_color $BLUE "╚════════════════════════════════════════════════════════════════════════════╝"
     echo ""
 }
-
+echo " "
 show_menu() {
     print_line
     print_color $CYAN "Opções Disponíveis:"
@@ -523,7 +523,7 @@ main() {
     log "INFO" "Assistente de Atualização Proxmox VE iniciado"
     log "INFO" "Usuário: $(whoami) | Hostname: $(hostname)"
     log "INFO" "═══════════════════════════════════════════════════════════"
-
+echo " "
     while true; do
         show_menu
         read -r -p "$(echo -e "${YELLOW}➤ Selecione uma opção [1-7]: ${NC}")" option
