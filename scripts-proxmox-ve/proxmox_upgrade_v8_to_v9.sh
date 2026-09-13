@@ -260,6 +260,128 @@ check_prerequisites() {
 }
 
 ################################################################################
+# VERIFICAÇÃO DE STORAGES EXTERNOS (USB / NFS / DISCO ADICIONAL)
+################################################################################
+
+# Lista variável global para armazenar storages USB detectados
+USB_STORAGE_DETECTED=false
+USB_STORAGE_PATHS=()
+
+check_external_storage() {
+    print_line
+    print_color $CYAN "💽 Verificando Storages Externos Montados no Proxmox VE..."
+    print_line
+
+    local found_any=false
+
+    # Itera sobre pontos de montagem sob /mnt/pve/ (padrão de storages no Proxmox)
+    while IFS= read -r mount_point; do
+        [ -z "$mount_point" ] && continue
+        found_any=true
+
+        local device
+        device=$(df --output=source "$mount_point" 2>/dev/null | tail -n 1)
+
+        # Detecta se o dispositivo é USB verificando o sys bus path
+        local is_usb=false
+        if [ -n "$device" ] && [[ "$device" == /dev/* ]]; then
+            local dev_name
+            dev_name=$(basename "$device" | sed 's/[0-9]*$//')
+            local sys_path="/sys/block/${dev_name}/device/../../../"
+            if ls "$sys_path" 2>/dev/null | grep -q 'usb' 2>/dev/null || \
+               udevadm info --query=property --name="$device" 2>/dev/null | grep -q 'ID_BUS=usb'; then
+                is_usb=true
+            fi
+        fi
+
+        if [ "$is_usb" = true ]; then
+            USB_STORAGE_DETECTED=true
+            USB_STORAGE_PATHS+=("$mount_point")
+            print_color $YELLOW "⚠  Storage USB detectado: $mount_point  →  dispositivo: $device"
+            log "WARN" "Storage USB em uso: $mount_point ($device)"
+        else
+            print_color $GREEN "✓ Storage externo OK: $mount_point  →  $device"
+            log "INFO" "Storage externo: $mount_point ($device)"
+        fi
+
+    done < <(mount | awk '{print $3}' | grep '^/mnt/pve/')
+
+    if [ "$found_any" = false ]; then
+        print_color $BLUE "ℹ️  Nenhum storage em /mnt/pve/ detectado no momento."
+        log "INFO" "Nenhum storage externo (/mnt/pve/*) montado"
+    fi
+
+    if [ "$USB_STORAGE_DETECTED" = true ]; then
+        echo ""
+        print_color $YELLOW "╔══════════════════════════════════════════════════════════════════════════╗"
+        print_color $YELLOW "║ ⚠  ATENÇÃO: Storages USB detectados!                                    ║"
+        print_color $YELLOW "║    Após atualização de kernel (dist-upgrade), dispositivos USB           ║"
+        print_color $YELLOW "║    podem ser remapeados ou perder compatibilidade.                       ║"
+        print_color $YELLOW "║    O script aplicará automaticamente o fix de quirks USB ao final.       ║"
+        print_color $YELLOW "╚══════════════════════════════════════════════════════════════════════════╝"
+        echo ""
+        log "WARN" "Storages USB detectados — fix de quirks será aplicado pós-upgrade"
+    fi
+}
+
+################################################################################
+# FIX DE COMPATIBILIDADE: USB STORAGE QUIRKS
+# Corrige falha de reconhecimento de discos USB após atualização de kernel.
+# Causa raiz: novo kernel Proxmox pode mudar o modo UAS (USB Attached SCSI),
+# tornando o dispositivo inacessível. O quirk força o modo de compatibilidade.
+# Solução aplicada: options usb-storage quirks=*:u + update-initramfs -u -k all
+################################################################################
+
+fix_usb_storage_quirks() {
+    print_line
+    print_color $CYAN "🔧 Aplicando Fix de Compatibilidade para Discos USB (USB Quirks)..."
+    print_line
+
+    local conf_file="/etc/modprobe.d/usb-storage.conf"
+    local quirk_line="options usb-storage quirks=*:u"
+
+    # Verifica se o fix já foi aplicado
+    if [ -f "$conf_file" ] && grep -qF "$quirk_line" "$conf_file"; then
+        print_color $GREEN "✓ Fix USB quirks já está aplicado em $conf_file — nenhuma ação necessária."
+        log "INFO" "USB quirks já presentes em $conf_file"
+    else
+        print_color $BLUE "▶ Criando/atualizando $conf_file com opção de quirks..."
+        echo "$quirk_line" >> "$conf_file"
+        if [ $? -eq 0 ]; then
+            print_color $GREEN "✓ Opção '$quirk_line' adicionada em $conf_file"
+            log "INFO" "USB quirk escrito em $conf_file"
+        else
+            print_color $RED "❌ Falha ao escrever em $conf_file"
+            log "ERROR" "Falha ao escrever USB quirk em $conf_file"
+            return 1
+        fi
+    fi
+
+    # Recria o initramfs para todos os kernels instalados
+    print_color $BLUE "▶ Recriando initramfs para todos os kernels instalados (update-initramfs -u -k all)..."
+    print_color $YELLOW "   ⏳ Este processo pode levar alguns minutos..."
+
+    run_with_spinner \
+        "Recriando initramfs (update-initramfs -u -k all)" \
+        "update-initramfs -u -k all" \
+        true
+
+    echo ""
+    print_color $GREEN "✓ Fix USB quirks aplicado com sucesso!"
+    print_color $CYAN "ℹ️  O fix será ativado após a próxima reinicialização do servidor."
+    log "INFO" "Fix USB quirks aplicado e initramfs regenerado com sucesso"
+
+    # Exibe storages USB que serão beneficiados
+    if [ ${#USB_STORAGE_PATHS[@]} -gt 0 ]; then
+        print_color $BLUE "▶ Storages USB que serão beneficiados após reboot:"
+        for path in "${USB_STORAGE_PATHS[@]}"; do
+            print_color $GREEN "   • $path"
+        done
+    fi
+    echo ""
+}
+
+################################################################################
 # BACKUP DAS CONFIGURAÇÕES
 ################################################################################
 
@@ -285,10 +407,19 @@ create_backup() {
         "/etc/pve"
         "/etc/apt"
         "/etc/network/interfaces"
+        "/etc/fstab"
         "/etc/hosts"
         "/etc/corosync"
+        "/etc/modprobe.d"
         "/root/.ssh"
     )
+
+    # Backup explícito do storage.cfg (crítico para recuperação de storages externos)
+    if [ -f "/etc/pve/storage.cfg" ]; then
+        print_color $BLUE "▶ Copiando configuração de storages (/etc/pve/storage.cfg)..."
+        cp -a /etc/pve/storage.cfg "$target_backup_dir/storage.cfg.bak" >> "$LOG_FILE" 2>&1
+        print_color $GREEN "✓ storage.cfg salvo com sucesso"
+    fi
 
     for item in "${items_to_backup[@]}"; do
         if [ -e "$item" ]; then
@@ -615,10 +746,12 @@ major_upgrade_8_to_9() {
     cat << 'EOF'
 Este procedimento irá realizar a MIGRAÇÃO COMPLETA:
   • Validação de pré-requisitos e teste de compatibilidade (pve8to9)
-  • Backup completo das configurações (/etc/pve, cluster SQLite, redes, VMs)
+  • Detecção de storages externos (USB, NFS, SSD adicional) e aviso de riscos
+  • Backup completo das configurações (/etc/pve, storage.cfg, fstab, modprobe.d)
   • Garantia de que a base 8.4 atual está totalmente atualizada
   • Migração dos repositórios: Debian 12 (Bookworm) → Debian 13 (Trixie)
   • Instalação dos pacotes do Proxmox VE 9.2 e novo Kernel Linux
+  • Aplicação automática de fix de compatibilidade USB (quirks) se USB detectado
   • Verificação pós-upgrade e solicitação de reinicialização do servidor
 
 ⏳ Tempo estimado: 15 a 35 minutos (dependendo da conexão e disco)
@@ -634,9 +767,11 @@ EOF
 
     log "INFO" "Iniciando processo de Upgrade Proxmox 8.4 para 9.2"
 
+    # 0. Verificações iniciais e inventário do ambiente
     check_prerequisites
+    check_external_storage   # Detecta USB/NFS/SSD e armazena resultado para uso pós-upgrade
     run_pve8to9_check
-    create_backup
+    create_backup            # Backup inclui fstab, storage.cfg e modprobe.d
 
     # 1. Migra repositórios para Trixie e desativa repositórios legados (Ceph/Enterprise)
     switch_repositories_to_trixie
@@ -658,14 +793,24 @@ EOF
     run_command "Removendo pacotes obsoletos (autoremove)" "apt-get autoremove -y" false
     run_command "Limpando cache do APT (clean)" "apt-get clean" false
 
-    # 3. Checagem pós-upgrade
+    # 3. Fix automático de compatibilidade USB se storage USB foi detectado antes do upgrade
+    if [ "$USB_STORAGE_DETECTED" = true ]; then
+        echo ""
+        print_color $YELLOW "🔧 Storage USB detectado anteriormente — aplicando fix de quirks USB..."
+        fix_usb_storage_quirks
+    fi
+
+    # 4. Checagem pós-upgrade
     post_update_check
     print_recommendations
 
-    # 4. Reinicialização obrigatória para carregar o Proxmox 9
+    # 5. Reinicialização obrigatória para carregar o Proxmox 9
     echo ""
     print_color $GREEN "🎉 O upgrade para a versão 9.2 foi concluído com sucesso!"
     print_color $YELLOW "🔔 Para inicializar com o novo kernel do Proxmox 9, o servidor deve ser reiniciado."
+    if [ "$USB_STORAGE_DETECTED" = true ]; then
+        print_color $YELLOW "🔌 O fix de compatibilidade USB também requer reboot para ser ativado."
+    fi
     echo ""
 
     if confirm "Deseja reiniciar o servidor Proxmox agora para carregar a versão 9.2?"; then
@@ -766,8 +911,9 @@ show_menu() {
     echo "4) 💾 Apenas criar backup das configurações"
     echo "5) ⚙️  Apenas configurar repositórios No-Subscription"
     echo "6) ✅ Apenas verificar integridade dos serviços pós-atualização"
-    echo "7) 📄 Exibir log da execução atual"
-    echo "8) 🚪 Sair"
+    echo "7) 💽 Verificar storages externos e aplicar fix USB (quirks)"
+    echo "8) 📄 Exibir log da execução atual"
+    echo "9) 🚪 Sair"
     echo ""
 }
 
@@ -796,9 +942,14 @@ main() {
 
             2)
                 check_prerequisites
+                check_external_storage
                 create_backup
                 setup_repositories
                 upgrade_system
+                if [ "$USB_STORAGE_DETECTED" = true ]; then
+                    print_color $YELLOW "🔧 Storage USB detectado — aplicando fix de quirks USB..."
+                    fix_usb_storage_quirks
+                fi
                 post_update_check
                 print_recommendations
                 check_and_handle_reboot
@@ -825,6 +976,27 @@ main() {
                 ;;
 
             7)
+                # Verificação de storages externos e fix USB
+                check_external_storage
+                echo ""
+                if [ "$USB_STORAGE_DETECTED" = true ]; then
+                    print_color $YELLOW "💽 Storages USB detectados. Deseja aplicar o fix de quirks USB agora?"
+                    if confirm "Aplicar fix USB quirks e regenerar initramfs?"; then
+                        fix_usb_storage_quirks
+                        echo ""
+                        print_color $CYAN "ℹ️  Reinicie o servidor para ativar o fix: reboot"
+                    else
+                        print_color $YELLOW "Fix USB não aplicado."
+                    fi
+                else
+                    print_color $GREEN "✓ Nenhum storage USB detectado. Fix não necessário."
+                    if confirm "Deseja forçar a aplicação do fix USB quirks mesmo assim?"; then
+                        fix_usb_storage_quirks
+                    fi
+                fi
+                ;;
+
+            8)
                 if [ -f "$LOG_FILE" ]; then
                     if command -v less &> /dev/null; then
                         less "$LOG_FILE"
@@ -836,14 +1008,14 @@ main() {
                 fi
                 ;;
 
-            8)
+            9)
                 log "INFO" "Script finalizado pelo usuário"
                 print_color $CYAN "Até logo!"
                 exit 0
                 ;;
 
             *)
-                print_color $RED "Opção inválida! Digite um número de 1 a 8."
+                print_color $RED "Opção inválida! Digite um número de 1 a 9."
                 ;;
         esac
 
