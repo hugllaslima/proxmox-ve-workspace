@@ -9,7 +9,9 @@ Este diretório contém scripts de automação para instalação, configuração
 ```
 scripts-postgres/
 ├── create_db.sh
+├── drop_db.sh
 ├── install_pg.sh
+├── uninstall_pg.sh
 └── README.md
 ```
 
@@ -114,6 +116,66 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
 
   # 2. Executar como superusuário
   sudo ./create_db.sh
+  ```
+
+---
+
+### 3. `drop_db.sh` (Assistente de Exclusão Segura de Banco e Usuário)
+
+- **Compatibilidade**:
+  - Ubuntu Server 24.04 LTS / 22.04 LTS / 20.04 LTS
+  - Debian 11 / 12 e derivados com PostgreSQL instalado
+
+- **Função**:
+  Permite excluir de forma assistida e segura um banco de dados específico, listando as bases existentes, desconectando sessões ativas e opcionalmente removendo o usuário proprietário associado.
+
+- **Recursos Principais**:
+  - **Listagem Automática**: Exibe todos os bancos do servidor (exceto templates/sistema) com nome, dono e tamanho ocupado em disco.
+  - **Proteção de Bancos de Sistema**: Impede a remoção acidental de `postgres`, `template0` e `template1`.
+  - **Backup Preventivo**: Pergunta se o administrador deseja realizar um dump (`pg_dump | gzip`) antes de apagar a base.
+  - **Encerramento Forçado de Conexões**: Encerra processos ativos conectados ao banco para evitar falhas de lock durante o `DROP DATABASE`.
+  - **Exclusão de Usuário com Salvaguarda**: Oferece remover o usuário/role proprietário, verificando antes se ele é dono de outras bases no servidor.
+
+- **Como Utilizar**:
+  ```bash
+  # 1. Dar permissão de execução
+  chmod +x drop_db.sh
+
+  # 2. Executar como superusuário ou usuário postgres
+  sudo ./drop_db.sh
+  ```
+
+---
+
+### 4. `uninstall_pg.sh` (Desinstalador Completo do PostgreSQL + TimescaleDB)
+
+- **Compatibilidade**:
+  - Ubuntu Server 24.04 LTS
+  - Ubuntu Server 22.04 LTS
+  - Ubuntu Server 20.04 LTS
+  - Distribuições Debian/Ubuntu em Contêineres LXC e Máquinas Virtuais (VMs)
+
+- **Função**:
+  Realiza a desinstalação segura e completa do **PostgreSQL** e **TimescaleDB**, eliminando serviços, pacotes, diretórios de dados, configurações, repositórios de terceiros e usuários de sistema criados.
+
+- **Onde e Quando Utilizar**:
+  - **Onde**: Diretamente na VM ou Contêiner LXC onde o PostgreSQL está instalado.
+  - **Quando**: Para resetar um ambiente de testes, desativar um nó de banco de dados ou reinstalar o serviço do zero sem deixar resíduos de configurações antigas.
+
+- **Recursos e Medidas de Segurança**:
+  - **Confirmação Obrigatória**: Exige digitação explícita de `CONFIRMAR` para evitar execuções acidentais em produção.
+  - **Backup Opcional de Resgate**: Oferece a geração automática de um dump completo (`pg_dumpall | gzip`) salvo em `/root/backups_postgres/` antes da remoção dos dados.
+  - **Encerramento de Processos**: Finaliza processos em execução e clusters ativos antes do descarte.
+  - **Purga de Pacotes e Repositórios**: Remove pacotes (`apt purge`), repositórios PGDG/TimescaleDB e chaves GPG adicionadas.
+  - **Limpeza de Diretórios e Usuário**: Exclui os diretórios `/var/lib/postgresql`, `/etc/postgresql*` e remove o usuário de sistema `postgres`.
+
+- **Como Utilizar**:
+  ```bash
+  # 1. Dar permissão de execução
+  chmod +x uninstall_pg.sh
+
+  # 2. Executar como superusuário
+  sudo ./uninstall_pg.sh
   ```
 
 ---
