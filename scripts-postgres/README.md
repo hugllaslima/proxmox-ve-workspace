@@ -11,6 +11,7 @@ scripts-postgres/
 ├── create_db.sh
 ├── destroy_db.sh
 ├── install_pg.sh
+├── manage_pg.sh
 ├── uninstall_pg.sh
 └── README.md
 ```
@@ -189,6 +190,37 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
 
   # 2. Executar como superusuário
   sudo ./uninstall_pg.sh
+  ```
+
+---
+
+### 5. `manage_pg.sh` (Painel Central de Gerenciamento e Controle de Redes)
+
+- **Compatibilidade**:
+  - Ubuntu Server 24.04 LTS / 22.04 LTS / 20.04 LTS
+  - Contêineres LXC e Máquinas Virtuais (VMs)
+
+- **Função**:
+  Interface interativa centralizada que unifica todas as ações do banco de dados em um único menu e oferece um módulo exclusivo para **gerenciamento de redes e acessos externos (`pg_hba.conf`) com zero downtime** (sem precisar reiniciar o banco ou derrubar conexões de clientes).
+
+- **Menu Integrado**:
+  1. **Instalar PostgreSQL 16**: Dispara o assistente `install_pg.sh`.
+  2. **Criar Banco e Usuário**: Dispara o assistente `create_db.sh`.
+  3. **Módulo de Redes e Acesso Externo**:
+     - *Listar redes autorizadas*: Mostra todas as faixas CIDR cadastradas no `pg_hba.conf`.
+     - *Adicionar nova rede*: Adiciona nova regra (ex: VPN `172.16.2.0/26` ou Datacenter `10.10.0.0/22`) e recarrega (`systemctl reload postgresql`).
+     - *Remover rede*: Permite excluir regras existentes de forma assistida.
+  4. **Excluir Banco de Dados**: Dispara o assistente `destroy_db.sh`.
+  5. **Status do Serviço e Conexões Ativas**: Exibe o status do `systemd` e lista em tempo real as sessões e IPs conectados via `pg_stat_activity`.
+  6. **Desinstalar PostgreSQL**: Dispara a rotina de limpeza profunda `uninstall_pg.sh`.
+
+- **Como Utilizar**:
+  ```bash
+  # 1. Dar permissão de execução
+  chmod +x manage_pg.sh
+
+  # 2. Executar como superusuário ou postgres
+  sudo ./manage_pg.sh
   ```
 
 ---
