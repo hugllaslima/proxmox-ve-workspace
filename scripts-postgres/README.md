@@ -88,11 +88,11 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
 >
 > Se você pretende utilizar esta VM ou Contêiner LXC como um **servidor central de banco de dados de infraestrutura** para atender simultaneamente várias ferramentas (ex: **Zabbix**, **Grafana**, **NetBox**, **SonarQube**, **RabbitMQ**, **Portainer**, etc.):
 >
-> 1. **No instalador (`install_pg.sh`)**:
+> 1. **Na instalação (Opção 1 do `manage_pg.sh`)**:
 >    - Responda **`s` (Sim)** para instalar o suporte ao TimescaleDB.
 >    - **Por quê?** Instalar o pacote no sistema operacional apenas *disponibiliza* a extensão no PostgreSQL e executa a otimização de memória (`timescaledb-tune`), que ajusta o cache de RAM do servidor de forma inteligente — beneficiando **todos os bancos** hospedados na máquina. **Isso NÃO força o uso do TimescaleDB em nenhum banco de dados.**
 >
-> 2. **No assistente de criação (`create_db.sh`)**:
+> 2. **Na criação de banco (Opção 2 do `manage_pg.sh`)**:
 >    - **Para o Zabbix**: Responda **`s`** para ativar a extensão na base `zabbix` (essencial para histórico massivo de métricas e compactação).
 >    - **Para NetBox, SonarQube, Grafana e outras aplicações**: Responda **`n`** para não ativar. O PostgreSQL manterá esses bancos como **100% nativos, relacionais e puros**, sem nenhuma interferência do TimescaleDB.
 
@@ -134,7 +134,7 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
 
 ---
 
-### 3. `drop_db.sh` (Assistente de Exclusão Segura de Banco e Usuário)
+### 3. `destroy_db.sh` (Assistente de Exclusão Segura de Banco e Usuário)
 
 - **Compatibilidade**:
   - Ubuntu Server 24.04 LTS / 22.04 LTS / 20.04 LTS
@@ -153,10 +153,10 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
 - **Como Utilizar**:
   ```bash
   # 1. Dar permissão de execução
-  chmod +x drop_db.sh
+  chmod +x destroy_db.sh
 
   # 2. Executar como superusuário ou usuário postgres
-  sudo ./drop_db.sh
+  sudo ./destroy_db.sh
   ```
 
 ---
@@ -194,32 +194,35 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
 
 ---
 
-### 5. `manage_pg.sh` (Painel Central de Gerenciamento e Controle de Redes)
+### 5. `manage_pg.sh` (Painel All-in-One — Script Principal Recomendado)
+
+> [!IMPORTANT]
+> **Este é o script principal e recomendado para uso.** Ele é 100% autônomo e contém toda a lógica interna integrada. Não depende dos demais scripts do diretório para funcionar.
 
 - **Compatibilidade**:
   - Ubuntu Server 24.04 LTS / 22.04 LTS / 20.04 LTS
   - Contêineres LXC e Máquinas Virtuais (VMs)
 
 - **Função**:
-  Interface interativa centralizada que unifica todas as ações do banco de dados em um único menu e oferece um módulo exclusivo para **gerenciamento de redes e acessos externos (`pg_hba.conf`) com zero downtime** (sem precisar reiniciar o banco ou derrubar conexões de clientes).
+  Painel de controle interativo e **completamente autossuficiente** que centraliza todas as operações de gerenciamento do PostgreSQL em um único arquivo. Toda a lógica de instalação, criação, exclusão, redes e desinstalação está **embutida internamente**, sem chamadas a scripts externos.
 
 - **Menu Integrado**:
-  1. **Instalar PostgreSQL 16**: Dispara o assistente `install_pg.sh`.
-  2. **Criar Banco e Usuário**: Dispara o assistente `create_db.sh`.
-  3. **Módulo de Redes e Acesso Externo**:
+  1. **Instalar PostgreSQL 16** *(lógica interna)*: Instala o PostgreSQL 16 com suporte opcional ao TimescaleDB, configura senha do superusuário e libera redes autorizadas.
+  2. **Criar Banco de Dados e Usuário** *(lógica interna)*: Provisiona banco, usuário e opcionalmente ativa a extensão TimescaleDB no banco criado.
+  3. **Módulo de Redes e Acesso Externo** *(lógica interna)*:
      - *Listar redes autorizadas*: Mostra todas as faixas CIDR cadastradas no `pg_hba.conf`.
-     - *Adicionar nova rede*: Adiciona nova regra (ex: VPN `172.16.2.0/26` ou Datacenter `10.10.0.0/22`) e recarrega (`systemctl reload postgresql`).
-     - *Remover rede*: Permite excluir regras existentes de forma assistida.
-  4. **Excluir Banco de Dados**: Dispara o assistente `destroy_db.sh`.
-  5. **Status do Serviço e Conexões Ativas**: Exibe o status do `systemd` e lista em tempo real as sessões e IPs conectados via `pg_stat_activity`.
-  6. **Desinstalar PostgreSQL**: Dispara a rotina de limpeza profunda `uninstall_pg.sh`.
+     - *Adicionar nova rede*: Adiciona nova regra (ex: VPN `172.16.2.0/26` ou Datacenter `10.10.0.0/22`) e recarrega o serviço sem downtime (`systemctl reload postgresql`).
+     - *Remover rede*: Permite excluir regras existentes de forma assistida e segura.
+  4. **Excluir Banco de Dados** *(lógica interna)*: Lista, confirma e remove um banco de dados com opção de backup preventivo.
+  5. **Status do Serviço e Conexões Ativas** *(lógica interna)*: Exibe o status do `systemd` e lista em tempo real as sessões e IPs conectados via `pg_stat_activity`.
+  6. **Desinstalar PostgreSQL** *(lógica interna)*: Executa a limpeza profunda — purge de pacotes, remoção de dados, repositórios e usuário de sistema.
 
 - **Como Utilizar**:
   ```bash
   # 1. Dar permissão de execução
   chmod +x manage_pg.sh
 
-  # 2. Executar como superusuário ou postgres
+  # 2. Executar como superusuário
   sudo ./manage_pg.sh
   ```
 
@@ -227,28 +230,31 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
 
 ## 💡 Fluxo de Trabalho Recomendado no Proxmox VE
 
-Um cenário típico de uso dentro do Proxmox VE é provisionar um contêiner LXC leve para centralizar bancos de dados:
+Um cenário típico de uso dentro do Proxmox VE é provisionar um contêiner LXC leve para centralizar bancos de dados. O ponto de entrada único é o **`manage_pg.sh`**:
 
 ```mermaid
 flowchart LR
     A["Host Proxmox VE"] --> B["Criar CT LXC (Ubuntu 24.04)"]
-    B --> C["Executar install_pg.sh"]
-    C --> D["Executar create_db.sh\n(ex: banco 'zabbix')"]
-    D --> E["Serviços Conectados\n(Zabbix Server / pgAdmin)"]
+    B --> C["Copiar manage_pg.sh"]
+    C --> D["Opção 1: Instalar PostgreSQL"]
+    D --> E["Opção 2: Criar banco\n(ex: banco 'zabbix')"]
+    E --> F["Serviços Conectados\n(Zabbix Server / pgAdmin)"]
 ```
 
 1. **Provisione um Contêiner LXC ou VM**:
    - Utilize um template Ubuntu Server (22.04 ou 24.04).
    - Defina os recursos (ex: 2 a 4 vCPUs, 2 a 8 GB RAM dependendo da carga).
-2. **Execute a Instalação**:
-   - Clone este repositório ou transfira a pasta `scripts-postgres` para a máquina.
-   - Execute o script `install_pg.sh`.
-3. **Crie as Bases de Dados**:
-   - Execute `create_db.sh` para cada aplicação (ex: Zabbix, NetBox, SonarQube, Grafana).
+2. **Transfira apenas o `manage_pg.sh`**:
+   - Copie somente este arquivo para o servidor — ele é completamente autossuficiente.
+   - Dê permissão de execução: `chmod +x manage_pg.sh`
+3. **Execute e use o menu interativo**:
+   - `sudo ./manage_pg.sh`
+   - **Opção 1**: Instale o PostgreSQL (com ou sem TimescaleDB).
+   - **Opção 2**: Crie bancos para cada aplicação (ex: Zabbix, NetBox, SonarQube, Grafana).
    - **Para o Zabbix**: Confirme a ativação da extensão TimescaleDB (`s`).
    - **Para NetBox, SonarQube, Grafana, etc.**: Responda não (`n`) para manter o banco relacional 100% puro.
 4. **Conecte sua Aplicação**:
-   - Utilize a string de conexão informada no final do assistente nas configurações do seu serviço.
+   - Utilize a string de conexão exibida no final de cada criação nas configurações do seu serviço.
 
 ---
 
