@@ -9,7 +9,7 @@ Este diretório contém scripts de automação para instalação, configuração
 ```
 scripts-postgres/
 ├── create_db.sh
-├── drop_db.sh
+├── destroy_db.sh
 ├── install_pg.sh
 ├── uninstall_pg.sh
 └── README.md
@@ -62,16 +62,16 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
   - **Quando**: No provisionamento inicial do servidor de banco de dados, antes de configurar aplicações que necessitam de armazenamento relacional ou de séries temporais (como Zabbix Server, Grafana, OnlyOffice, APIs, etc.).
 
 - **Etapas Executadas pelo Script**:
-  1. **Atualização do Sistema**: Atualiza a lista de pacotes (`apt update && apt upgrade -y`) e instala utilitários pré-requisito (`gnupg`, `postgresql-common`, `apt-transport-https`, `lsb-release`, `wget`).
-  2. **Repositório Oficial PostgreSQL**: Adiciona o repositório oficial da comunidade PostgreSQL (PGDG) através do utilitário oficial `apt.postgresql.org.sh`.
-  3. **Repositório TimescaleDB**: Importa a chave GPG segura (`packagecloud.io`) e configura o repositório oficial do TimescaleDB no APT.
-  4. **Instalação dos Pacotes**: Instala o `postgresql-16` e o módulo `timescaledb-2-postgresql-16`.
-  5. **Configuração de Acesso de Rede (Interativo)**:
+  1. **Escolha Opcional do TimescaleDB**: Pergunta logo no início se o servidor terá suporte à extensão TimescaleDB (recomendado para Zabbix/Métricas) ou se deve instalar apenas o PostgreSQL puro.
+  2. **Atualização do Sistema**: Atualiza a lista de pacotes (`apt update && apt upgrade -y`) e instala utilitários pré-requisito (`gnupg`, `postgresql-common`, `apt-transport-https`, `lsb-release`, `wget`).
+  3. **Repositório Oficial PostgreSQL**: Adiciona o repositório oficial da comunidade PostgreSQL (PGDG) através do utilitário oficial `apt.postgresql.org.sh`.
+  4. **Instalação dos Pacotes**: Instala o `postgresql-16` e, se solicitado, o módulo `timescaledb-2-postgresql-16`.
+  5. **Definição Segura da Senha de Root (postgres)**: Solicita e confirma a senha do superusuário do banco.
+  6. **Configuração de Acesso de Rede (Interativo)**:
      - Pergunta se deseja liberar acesso externo (ex: conexões remotas via pgAdmin, DBeaver ou aplicações em outros hosts).
-     - **Se confirmado**: Configura `listen_addresses = '*'` em `postgresql.conf` e adiciona regra permissiva com criptografia moderna (`host all all 0.0.0.0/0 scram-sha-256`) em `pg_hba.conf`.
-     - **Se negado**: Mantém o acesso restrito localmente (`localhost`).
-  6. **Tuning Automático (`timescaledb-tune`)**: Executa a ferramenta oficial `timescaledb-tune --quiet --yes`, que analisa a quantidade de memória RAM e CPUs disponíveis na máquina para ajustar parâmetros de cache (`shared_buffers`, `effective_cache_size`, `work_mem`, `max_worker_processes`).
-  7. **Habilitação de Serviço**: Reinicia o PostgreSQL para carregar as novas configurações e habilita o serviço no `systemd` para iniciar automaticamente com o sistema.
+     - Permite cadastrar faixas CIDR autorizadas (ex: `10.10.0.0/16`) no `pg_hba.conf` com criptografia `scram-sha-256`.
+  7. **Tuning Automático (`timescaledb-tune`)**: Caso o TimescaleDB tenha sido selecionado, executa a ferramenta de ajuste de parâmetros de memória (`shared_buffers`, `effective_cache_size`, `work_mem`).
+  8. **Habilitação de Serviço**: Reinicia o PostgreSQL para carregar as novas configurações e habilita o serviço no `systemd` para iniciar automaticamente com o sistema.
 
 - **Como Utilizar**:
   ```bash
@@ -81,6 +81,19 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
   # 2. Executar como superusuário
   sudo ./install_pg.sh
   ```
+
+> [!IMPORTANT]
+> ### 🧭 Cenário Multisserviço: Quando instalar o TimescaleDB em Servidor Centralizado?
+>
+> Se você pretende utilizar esta VM ou Contêiner LXC como um **servidor central de banco de dados de infraestrutura** para atender simultaneamente várias ferramentas (ex: **Zabbix**, **Grafana**, **NetBox**, **SonarQube**, **RabbitMQ**, **Portainer**, etc.):
+>
+> 1. **No instalador (`install_pg.sh`)**:
+>    - Responda **`s` (Sim)** para instalar o suporte ao TimescaleDB.
+>    - **Por quê?** Instalar o pacote no sistema operacional apenas *disponibiliza* a extensão no PostgreSQL e executa a otimização de memória (`timescaledb-tune`), que ajusta o cache de RAM do servidor de forma inteligente — beneficiando **todos os bancos** hospedados na máquina. **Isso NÃO força o uso do TimescaleDB em nenhum banco de dados.**
+>
+> 2. **No assistente de criação (`create_db.sh`)**:
+>    - **Para o Zabbix**: Responda **`s`** para ativar a extensão na base `zabbix` (essencial para histórico massivo de métricas e compactação).
+>    - **Para NetBox, SonarQube, Grafana e outras aplicações**: Responda **`n`** para não ativar. O PostgreSQL manterá esses bancos como **100% nativos, relacionais e puros**, sem nenhuma interferência do TimescaleDB.
 
 ---
 
@@ -198,9 +211,10 @@ flowchart LR
 2. **Execute a Instalação**:
    - Clone este repositório ou transfira a pasta `scripts-postgres` para a máquina.
    - Execute o script `install_pg.sh`.
-3. **Crie a Base de Dados**:
-   - Execute `create_db.sh` para cada aplicação (ex: Zabbix).
-   - Se for para o Zabbix, confirme a ativação da extensão TimescaleDB quando solicitado.
+3. **Crie as Bases de Dados**:
+   - Execute `create_db.sh` para cada aplicação (ex: Zabbix, NetBox, SonarQube, Grafana).
+   - **Para o Zabbix**: Confirme a ativação da extensão TimescaleDB (`s`).
+   - **Para NetBox, SonarQube, Grafana, etc.**: Responda não (`n`) para manter o banco relacional 100% puro.
 4. **Conecte sua Aplicação**:
    - Utilize a string de conexão informada no final do assistente nas configurações do seu serviço.
 

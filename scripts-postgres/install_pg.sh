@@ -48,8 +48,11 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo -e "${CYAN}==================================================${NC}"
-echo -e "${CYAN}${BOLD} Instalador: PostgreSQL 16 + TimescaleDB (Ubuntu) ${NC}"
+echo -e "${CYAN}${BOLD} Instalador: PostgreSQL 16 (Ubuntu Server)        ${NC}"
 echo -e "${CYAN}==================================================${NC}"
+echo ""
+
+read -p "Deseja instalar a extensão TimescaleDB neste servidor? (Recomendado para Zabbix/Métricas) (s/n): " INSTALL_TS
 
 log_step "[1/8] Atualizando pacotes do sistema..."
 apt update && apt upgrade -y
@@ -58,13 +61,24 @@ apt install -y gnupg postgresql-common apt-transport-https lsb-release wget
 log_step "[2/8] Adicionando repositório do PostgreSQL..."
 /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
 
-log_step "[3/8] Adicionando repositório do TimescaleDB..."
-wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor -o /etc/apt/trusted.gpg.d/timescaledb.gpg
-echo "deb https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -c -s) main" | tee /etc/apt/sources.list.d/timescaledb.list
+if [ "$INSTALL_TS" = "s" ] || [ "$INSTALL_TS" = "S" ]; then
+    log_step "[3/8] Adicionando repositório do TimescaleDB..."
+    wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | gpg --dearmor -o /etc/apt/trusted.gpg.d/timescaledb.gpg
+    echo "deb https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -c -s) main" | tee /etc/apt/sources.list.d/timescaledb.list
 
-log_step "[4/8] Instalando PostgreSQL 16 e TimescaleDB..."
-apt update
-apt install -y postgresql-16 timescaledb-2-postgresql-16
+    log_step "[4/8] Instalando PostgreSQL 16 e TimescaleDB..."
+    apt update
+    apt install -y postgresql-16 timescaledb-2-postgresql-16
+    log_success "PostgreSQL 16 e TimescaleDB instalados com sucesso."
+else
+    log_step "[3/8] Repositório TimescaleDB..."
+    log_info "TimescaleDB ignorado pelo usuário."
+
+    log_step "[4/8] Instalando PostgreSQL 16 (Puro)..."
+    apt update
+    apt install -y postgresql-16
+    log_success "PostgreSQL 16 instalado com sucesso."
+fi
 
 log_step "[5/8] Definindo senha do usuário 'postgres'..."
 read -s -p "Digite a SENHA para o usuário 'postgres': " PG_PASSWORD
@@ -134,8 +148,14 @@ else
     log_warning "Acesso externo BLOQUEADO (Apenas localhost)."
 fi
 
-log_step "[7/8] Otimizando o banco de dados com timescaledb-tune..."
-timescaledb-tune --quiet --yes
+if [ "$INSTALL_TS" = "s" ] || [ "$INSTALL_TS" = "S" ]; then
+    log_step "[7/8] Otimizando o banco de dados com timescaledb-tune..."
+    timescaledb-tune --quiet --yes
+    log_success "Parâmetros de performance do PostgreSQL otimizados."
+else
+    log_step "[7/8] Otimização de performance..."
+    log_info "TimescaleDB não selecionado. Otimização com timescaledb-tune ignorada."
+fi
 
 log_step "[8/8] Reiniciando serviço PostgreSQL..."
 systemctl restart postgresql
