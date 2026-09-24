@@ -66,8 +66,9 @@ instalar_postgresql() {
     read -p "Deseja instalar a extensão TimescaleDB neste servidor? (Recomendado para Zabbix/Métricas) (s/n): " INSTALL_TS
 
     log_step "[1/8] Atualizando pacotes do sistema..."
-    apt update && apt upgrade -y
-    apt install -y gnupg postgresql-common apt-transport-https lsb-release wget
+    apt-get update -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=15 || apt-get update || true
+    apt-get upgrade -y
+    apt-get install -y gnupg postgresql-common apt-transport-https lsb-release wget
 
     log_step "[2/8] Adicionando repositório do PostgreSQL..."
     /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
@@ -78,16 +79,16 @@ instalar_postgresql() {
         echo "deb https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -c -s) main" | tee /etc/apt/sources.list.d/timescaledb.list
 
         log_step "[4/8] Instalando PostgreSQL 16 e TimescaleDB..."
-        apt update
-        apt install -y postgresql-16 timescaledb-2-postgresql-16
+        apt-get update -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=15 || apt-get update || true
+        apt-get install -y postgresql-16 timescaledb-2-postgresql-16
         log_success "PostgreSQL 16 e TimescaleDB instalados com sucesso."
     else
         log_step "[3/8] Repositório TimescaleDB..."
         log_info "TimescaleDB ignorado pelo usuário."
 
         log_step "[4/8] Instalando PostgreSQL 16 (Puro)..."
-        apt update
-        apt install -y postgresql-16
+        apt-get update -o Acquire::ForceIPv4=true -o Acquire::http::Timeout=15 || apt-get update || true
+        apt-get install -y postgresql-16
         log_success "PostgreSQL 16 instalado com sucesso."
     fi
 
