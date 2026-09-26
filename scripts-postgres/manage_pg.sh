@@ -738,6 +738,405 @@ desinstalar_postgresql() {
 }
 
 #==============================================================================
+# 7. MÓDULO: GERENCIAMENTO DE USUÁRIOS E PERMISSÕES
+#==============================================================================
+
+# ---------------------------------------------------------------------------
+# 7.1 Listar usuários e suas permissões
+# ---------------------------------------------------------------------------
+listar_usuarios() {
+    echo ""
+    log_info "Usuários cadastrados no PostgreSQL:"
+    echo -e "${CYAN}------------------------------------------------------------------------${NC}"
+
+    sudo -u postgres psql -t -A -F "|" -c "
+        SELECT
+            r.rolname                                    AS usuario,
+            CASE WHEN r.rolsuper    THEN 'SIM' ELSE 'NÃO' END AS superusuario,
+            CASE WHEN r.rolcreatedb THEN 'SIM' ELSE 'NÃO' END AS cria_banco,
+            CASE WHEN r.rolcreaterole THEN 'SIM' ELSE 'NÃO' END AS cria_role,
+            CASE WHEN r.rolcanlogin THEN 'SIM' ELSE 'NÃO' END AS login,
+            CASE WHEN r.rolreplication THEN 'SIM' ELSE 'NÃO' END AS replicacao
+        FROM pg_roles r
+        WHERE r.rolname NOT LIKE 'pg_%'
+        ORDER BY r.rolname;
+    " 2>/dev/null | while IFS="|" read -r USR SUPER CRDB CRROLE LOGIN REPL; do
+        if [ -n "$USR" ]; then
+            echo -e "\n  ${BOLD}Usuário:${NC} ${GREEN}${BOLD}$USR${NC}"
+            echo -e "    SuperUsuário : ${YELLOW}$SUPER${NC}  |  Criar DB: ${YELLOW}$CRDB${NC}  |  Criar Role: ${YELLOW}$CRROLE${NC}"
+            echo -e "    Pode Login  : ${YELLOW}$LOGIN${NC}  |  Replicação: ${YELLOW}$REPL${NC}"
+
+            # Bancos onde o usuário tem privilégios de conexão
+            BANCOS=$(sudo -u postgres psql -t -A -c "
+                SELECT datname FROM pg_database d
+                WHERE has_database_privilege('$USR', datname, 'CONNECT')
+                  AND datname NOT IN ('template0','template1')
+                ORDER BY datname;
+            " 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+            if [ -n "$BANCOS" ]; then
+                echo -e "    Bancos c/ acesso : ${BLUE}$BANCOS${NC}"
+            else
+                echo -e "    Bancos c/ acesso : ${YELLOW}(nenhum)${NC}"
+            fi
+        fi
+    done
+
+    echo ""
+    echo -e "${CYAN}------------------------------------------------------------------------${NC}"
+}
+
+# ---------------------------------------------------------------------------
+# 7.2 Criar novo usuário PostgreSQL
+# ---------------------------------------------------------------------------
+criar_usuario() {
+    echo ""
+    echo -e "${CYAN}====================================================${NC}"
+    echo -e "${CYAN}${BOLD}         Criação de Novo Usuário PostgreSQL          ${NC}"
+    echo -e "${CYAN}====================================================${NC}"
+    echo ""
+
+    read -p "Digite o nome do NOVO USUÁRIO: " NEW_USR
+    if [ -z "$NEW_USR" ]; then
+        log_error "O nome do usuário não pode ficar vazio!"
+        return 1
+    fi
+
+    # Verificar se usuário já existe
+    EXISTE=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$NEW_USR';" 2>/dev/null)
+    if [ "$EXISTE" = "1" ]; then
+        log_error "O usuário '$NEW_USR' já existe no PostgreSQL!"
+        return 1
+    fi
+
+    read -s -p "Digite a SENHA para '$NEW_USR': " NEW_PASS
+    echo ""
+    read -s -p "Confirme a SENHA: " NEW_PASS_CONFIRM
+    echo ""
+
+    if [ "$NEW_PASS" != "$NEW_PASS_CONFIRM" ]; then
+        log_error "As senhas não conferem!"
+        return 1
+    fi
+
+    if [ -z "$NEW_PASS" ]; then
+        log_error "A senha não pode ficar vazia!"
+        return 1
+    fi
+
+    # Perfil de permissão
+    echo ""
+    echo -e "${CYAN}${BOLD}Selecione o perfil de permissão para o novo usuário:${NC}"
+    echo -e "  ${BOLD}1)${NC} ${GREEN}Padrão${NC}        — Apenas login, sem privilégios extras (recomendado para apps)"
+    echo -e "  ${BOLD}2)${NC} ${YELLOW}Criador de BD${NC} — Login + permissão para criar bancos de dados"
+    echo -e "  ${BOLD}3)${NC} ${RED}Superusuário${NC}  — Acesso total ao servidor (use com cautela!)"
+    echo -e "  ${BOLD}4)${NC} ${BLUE}Replicação${NC}    — Somente replicação (streaming replica)"
+    echo ""
+    read -p "Perfil [1-4]: " PERFIL
+
+    case "$PERFIL" in
+        1) ROLE_OPTS="LOGIN" ;;
+        2) ROLE_OPTS="LOGIN CREATEDB" ;;
+        3) ROLE_OPTS="LOGIN SUPERUSER" ;;
+        4) ROLE_OPTS="LOGIN REPLICATION NOSUPER" ;;
+        *) log_error "Opção inválida! Usando perfil padrão."; ROLE_OPTS="LOGIN" ;;
+    esac
+
+    log_step "Criando usuário '$NEW_USR' no PostgreSQL..."
+    if sudo -u postgres psql -c "CREATE USER \"$NEW_USR\" WITH $ROLE_OPTS PASSWORD '$NEW_PASS';"; then
+        log_success "Usuário '$NEW_USR' criado com sucesso (perfil: $ROLE_OPTS)."
+    else
+        log_error "Falha ao criar o usuário '$NEW_USR'!"
+        return 1
+    fi
+
+    # Associar a banco existente?
+    echo ""
+    read -p "Deseja vincular este usuário a um banco de dados existente agora? (s/n): " VINCULAR
+    if [ "$VINCULAR" = "s" ] || [ "$VINCULAR" = "S" ]; then
+        echo ""
+        log_info "Bancos disponíveis:"
+        sudo -u postgres psql -t -A -c \
+            "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;" 2>/dev/null | \
+            while IFS= read -r DB; do [ -n "$DB" ] && echo -e "  - ${BLUE}$DB${NC}"; done
+        echo ""
+        read -p "Digite o nome do banco: " LINK_DB
+        if [ -n "$LINK_DB" ]; then
+            sudo -u postgres psql -c "GRANT CONNECT ON DATABASE \"$LINK_DB\" TO \"$NEW_USR\";"
+            sudo -u postgres psql -d "$LINK_DB" -c "GRANT USAGE ON SCHEMA public TO \"$NEW_USR\";"
+            log_success "Usuário '$NEW_USR' vinculado ao banco '$LINK_DB'."
+        fi
+    fi
+
+    echo ""
+    echo -e "${GREEN}====================================================${NC}"
+    echo -e "${GREEN}${BOLD} [OK] Usuário criado com sucesso!                   ${NC}"
+    echo -e "${GREEN}====================================================${NC}"
+}
+
+# ---------------------------------------------------------------------------
+# 7.3 Gerenciar permissões de um usuário em um banco
+# ---------------------------------------------------------------------------
+gerenciar_permissoes() {
+    echo ""
+    echo -e "${CYAN}====================================================${NC}"
+    echo -e "${CYAN}${BOLD}    Ajuste de Permissões de Usuário em Banco         ${NC}"
+    echo -e "${CYAN}====================================================${NC}"
+    echo ""
+
+    # Listar usuários disponíveis
+    log_info "Usuários disponíveis:"
+    sudo -u postgres psql -t -A -c \
+        "SELECT rolname FROM pg_roles WHERE rolname NOT LIKE 'pg_%' ORDER BY rolname;" 2>/dev/null | \
+        while IFS= read -r U; do [ -n "$U" ] && echo -e "  - ${GREEN}$U${NC}"; done
+    echo ""
+    read -p "Digite o nome do USUÁRIO que deseja ajustar: " PERM_USR
+    if [ -z "$PERM_USR" ]; then
+        log_error "Nome de usuário vazio!"
+        return 1
+    fi
+
+    EXISTE=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$PERM_USR';" 2>/dev/null)
+    if [ "$EXISTE" != "1" ]; then
+        log_error "Usuário '$PERM_USR' não encontrado!"
+        return 1
+    fi
+
+    # Listar bancos disponíveis
+    echo ""
+    log_info "Bancos de dados disponíveis:"
+    sudo -u postgres psql -t -A -c \
+        "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;" 2>/dev/null | \
+        while IFS= read -r DB; do [ -n "$DB" ] && echo -e "  - ${BLUE}$DB${NC}"; done
+    echo ""
+    read -p "Digite o nome do BANCO DE DADOS a configurar: " PERM_DB
+    if [ -z "$PERM_DB" ]; then
+        log_error "Nome do banco vazio!"
+        return 1
+    fi
+
+    DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$PERM_DB';" 2>/dev/null)
+    if [ "$DB_EXISTS" != "1" ]; then
+        log_error "Banco '$PERM_DB' não encontrado!"
+        return 1
+    fi
+
+    # Menu de permissões
+    echo ""
+    echo -e "${CYAN}${BOLD}O que deseja configurar para '${GREEN}$PERM_USR${CYAN}' no banco '${BLUE}$PERM_DB${CYAN}'?${NC}"
+    echo -e "  ${BOLD}1)${NC} ${GREEN}ALL PRIVILEGES${NC}       — Controle total (SELECT, INSERT, UPDATE, DELETE, ...)"
+    echo -e "  ${BOLD}2)${NC} ${YELLOW}SOMENTE LEITURA${NC}      — Apenas SELECT em todas as tabelas"
+    echo -e "  ${BOLD}3)${NC} ${YELLOW}LEITURA + ESCRITA${NC}    — SELECT, INSERT, UPDATE, DELETE (sem DROP/CREATE)"
+    echo -e "  ${BOLD}4)${NC} ${BLUE}Tornar DONO do banco${NC} — Transfere a propriedade do banco para o usuário"
+    echo -e "  ${BOLD}5)${NC} ${RED}REVOGAR TUDO${NC}         — Remove todas as permissões do usuário neste banco"
+    echo -e "  ${BOLD}0)${NC} Cancelar"
+    echo ""
+    read -p "Opção [0-5]: " PERM_OPCAO
+
+    case "$PERM_OPCAO" in
+        1)
+            log_step "Concedendo ALL PRIVILEGES..."
+            sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE \"$PERM_DB\" TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT USAGE ON SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO \"$PERM_USR\";"
+            log_success "ALL PRIVILEGES concedido a '$PERM_USR' no banco '$PERM_DB'."
+            ;;
+        2)
+            log_step "Configurando acesso SOMENTE LEITURA..."
+            sudo -u postgres psql -c "GRANT CONNECT ON DATABASE \"$PERM_DB\" TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT USAGE ON SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO \"$PERM_USR\";"
+            log_success "Permissão de LEITURA concedida a '$PERM_USR' no banco '$PERM_DB'."
+            ;;
+        3)
+            log_step "Configurando LEITURA + ESCRITA..."
+            sudo -u postgres psql -c "GRANT CONNECT ON DATABASE \"$PERM_DB\" TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT USAGE ON SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO \"$PERM_USR\";"
+            sudo -u postgres psql -d "$PERM_DB" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO \"$PERM_USR\";"
+            log_success "Permissões de LEITURA e ESCRITA concedidas a '$PERM_USR' no banco '$PERM_DB'."
+            ;;
+        4)
+            log_step "Transferindo propriedade do banco '$PERM_DB' para '$PERM_USR'..."
+            sudo -u postgres psql -c "ALTER DATABASE \"$PERM_DB\" OWNER TO \"$PERM_USR\";"
+            log_success "Banco '$PERM_DB' agora pertence ao usuário '$PERM_USR'."
+            ;;
+        5)
+            read -p "Tem certeza que deseja REVOGAR TODAS as permissões de '$PERM_USR' em '$PERM_DB'? (s/n): " CONF_REV
+            if [ "$CONF_REV" = "s" ] || [ "$CONF_REV" = "S" ]; then
+                log_step "Revogando permissões..."
+                sudo -u postgres psql -d "$PERM_DB" -c "REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM \"$PERM_USR\";"
+                sudo -u postgres psql -d "$PERM_DB" -c "REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM \"$PERM_USR\";"
+                sudo -u postgres psql -d "$PERM_DB" -c "REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM \"$PERM_USR\";"
+                sudo -u postgres psql -d "$PERM_DB" -c "REVOKE USAGE ON SCHEMA public FROM \"$PERM_USR\";"
+                sudo -u postgres psql -c "REVOKE ALL PRIVILEGES ON DATABASE \"$PERM_DB\" FROM \"$PERM_USR\";"
+                log_success "Todas as permissões de '$PERM_USR' no banco '$PERM_DB' foram revogadas."
+            else
+                log_info "Operação cancelada."
+            fi
+            ;;
+        0)
+            log_info "Operação cancelada."
+            return 0
+            ;;
+        *)
+            log_error "Opção inválida!"
+            return 1
+            ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
+# 7.4 Alterar senha de um usuário existente
+# ---------------------------------------------------------------------------
+alterar_senha_usuario() {
+    echo ""
+    echo -e "${CYAN}====================================================${NC}"
+    echo -e "${CYAN}${BOLD}         Alterar Senha de Usuário PostgreSQL         ${NC}"
+    echo -e "${CYAN}====================================================${NC}"
+    echo ""
+
+    log_info "Usuários disponíveis:"
+    sudo -u postgres psql -t -A -c \
+        "SELECT rolname FROM pg_roles WHERE rolcanlogin = true AND rolname NOT LIKE 'pg_%' ORDER BY rolname;" 2>/dev/null | \
+        while IFS= read -r U; do [ -n "$U" ] && echo -e "  - ${GREEN}$U${NC}"; done
+    echo ""
+
+    read -p "Digite o nome do USUÁRIO: " SENHA_USR
+    if [ -z "$SENHA_USR" ]; then
+        log_error "Nome de usuário vazio!"
+        return 1
+    fi
+
+    EXISTE=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$SENHA_USR';" 2>/dev/null)
+    if [ "$EXISTE" != "1" ]; then
+        log_error "Usuário '$SENHA_USR' não encontrado!"
+        return 1
+    fi
+
+    read -s -p "Nova SENHA para '$SENHA_USR': " NOVA_SENHA
+    echo ""
+    read -s -p "Confirme a nova SENHA: " NOVA_SENHA_CONFIRM
+    echo ""
+
+    if [ "$NOVA_SENHA" != "$NOVA_SENHA_CONFIRM" ]; then
+        log_error "As senhas não conferem!"
+        return 1
+    fi
+
+    if [ -z "$NOVA_SENHA" ]; then
+        log_error "A senha não pode ficar vazia!"
+        return 1
+    fi
+
+    if sudo -u postgres psql -c "ALTER USER \"$SENHA_USR\" WITH PASSWORD '$NOVA_SENHA';"; then
+        log_success "Senha do usuário '$SENHA_USR' atualizada com sucesso!"
+    else
+        log_error "Falha ao alterar a senha do usuário '$SENHA_USR'!"
+        return 1
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# 7.5 Excluir usuário PostgreSQL
+# ---------------------------------------------------------------------------
+excluir_usuario() {
+    echo ""
+    echo -e "${RED}====================================================${NC}"
+    echo -e "${RED}${BOLD}         Exclusão de Usuário PostgreSQL              ${NC}"
+    echo -e "${RED}====================================================${NC}"
+    echo ""
+
+    log_info "Usuários disponíveis:"
+    sudo -u postgres psql -t -A -c \
+        "SELECT rolname FROM pg_roles WHERE rolname NOT LIKE 'pg_%' ORDER BY rolname;" 2>/dev/null | \
+        while IFS= read -r U; do [ -n "$U" ] && echo -e "  - ${GREEN}$U${NC}"; done
+    echo ""
+
+    read -p "Digite o nome do USUÁRIO que deseja EXCLUIR: " DEL_USR
+    if [ -z "$DEL_USR" ]; then
+        log_error "Nome de usuário vazio!"
+        return 1
+    fi
+
+    if [ "$DEL_USR" = "postgres" ]; then
+        log_error "Por segurança, o superusuário 'postgres' não pode ser excluído!"
+        return 1
+    fi
+
+    EXISTE=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$DEL_USR';" 2>/dev/null)
+    if [ "$EXISTE" != "1" ]; then
+        log_error "Usuário '$DEL_USR' não encontrado!"
+        return 1
+    fi
+
+    # Verificar se possui bancos como owner
+    OWNED_DBS=$(sudo -u postgres psql -tAc \
+        "SELECT datname FROM pg_database WHERE pg_catalog.pg_get_userbyid(datdba) = '$DEL_USR' AND datname NOT IN ('template0','template1');" 2>/dev/null | tr -s '\n' ', ' | sed 's/,$//')
+    if [ -n "$OWNED_DBS" ]; then
+        log_warning "O usuário '$DEL_USR' é proprietário dos bancos: ${OWNED_DBS}"
+        log_warning "Transfira a propriedade desses bancos antes de excluir o usuário!"
+        echo ""
+        read -p "Deseja REVOGAR dependências automaticamente antes de excluir? (s/n): " AUTO_REVOKE
+        if [ "$AUTO_REVOKE" = "s" ] || [ "$AUTO_REVOKE" = "S" ]; then
+            sudo -u postgres psql -c "REASSIGN OWNED BY \"$DEL_USR\" TO postgres;"
+            sudo -u postgres psql -c "DROP OWNED BY \"$DEL_USR\";"
+            log_success "Dependências transferidas para 'postgres'."
+        else
+            log_info "Operação cancelada. Ajuste as dependências manualmente e tente novamente."
+            return 1
+        fi
+    fi
+
+    read -p "Tem certeza que deseja EXCLUIR o usuário '$DEL_USR'? (s/n): " CONF_DEL_USR
+    if [ "$CONF_DEL_USR" = "s" ] || [ "$CONF_DEL_USR" = "S" ]; then
+        if sudo -u postgres psql -c "DROP USER \"$DEL_USR\";"; then
+            log_success "Usuário '$DEL_USR' excluído com sucesso!"
+        else
+            log_error "Falha ao excluir o usuário '$DEL_USR'!"
+            return 1
+        fi
+    else
+        log_info "Operação cancelada."
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# 7.6 Menu principal do módulo de usuários
+# ---------------------------------------------------------------------------
+menu_usuarios() {
+    while true; do
+        echo ""
+        echo -e "${CYAN}====================================================${NC}"
+        echo -e "${CYAN}${BOLD}   MÓDULO: GERENCIAMENTO DE USUÁRIOS E PERMISSÕES   ${NC}"
+        echo -e "${CYAN}====================================================${NC}"
+        echo -e "  ${BOLD}1)${NC} Listar usuários e permissões"
+        echo -e "  ${BOLD}2)${NC} Criar novo usuário"
+        echo -e "  ${BOLD}3)${NC} Ajustar permissões de um usuário em um banco"
+        echo -e "  ${BOLD}4)${NC} Alterar senha de um usuário"
+        echo -e "  ${BOLD}5)${NC} Excluir usuário"
+        echo -e "  ${BOLD}0)${NC} Voltar ao menu principal"
+        echo -e "${CYAN}----------------------------------------------------${NC}"
+        read -p "Selecione uma opção [0-5]: " USR_OPCAO
+
+        case "$USR_OPCAO" in
+            1) listar_usuarios ;;
+            2) criar_usuario ;;
+            3) gerenciar_permissoes ;;
+            4) alterar_senha_usuario ;;
+            5) excluir_usuario ;;
+            0) break ;;
+            *) log_error "Opção inválida!" ;;
+        esac
+    done
+}
+
+#==============================================================================
 # MENU PRINCIPAL ITERATIVO
 #==============================================================================
 while true; do
@@ -751,9 +1150,10 @@ while true; do
     echo -e "  ${BOLD}4)${NC} Excluir Banco de Dados"
     echo -e "  ${BOLD}5)${NC} Status do Serviço e Conexões Ativas"
     echo -e "  ${BOLD}6)${NC} Desinstalar PostgreSQL (Limpeza Completa)"
+    echo -e "  ${BOLD}7)${NC} Gerenciar Usuários e Permissões"
     echo -e "  ${BOLD}0)${NC} Sair do Painel"
     echo -e "${BLUE}========================================================${NC}"
-    read -p "Selecione uma opção [0-6]: " MENU_OPCAO
+    read -p "Selecione uma opção [0-7]: " MENU_OPCAO
 
     case "$MENU_OPCAO" in
         1) instalar_postgresql ;;
@@ -762,12 +1162,13 @@ while true; do
         4) excluir_banco ;;
         5) status_servico ;;
         6) desinstalar_postgresql ;;
+        7) menu_usuarios ;;
         0)
             log_info "Encerrando painel de gerenciamento. Até logo!"
             exit 0
             ;;
         *)
-            log_error "Opção inválida! Escolha um número entre 0 e 6."
+            log_error "Opção inválida! Escolha um número entre 0 e 7."
             ;;
     esac
 done

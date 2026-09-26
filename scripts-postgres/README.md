@@ -204,18 +204,7 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
   - Contêineres LXC e Máquinas Virtuais (VMs)
 
 - **Função**:
-  Painel de controle interativo e **completamente autossuficiente** que centraliza todas as operações de gerenciamento do PostgreSQL em um único arquivo. Toda a lógica de instalação, criação, exclusão, redes e desinstalação está **embutida internamente**, sem chamadas a scripts externos.
-
-- **Menu Integrado**:
-  1. **Instalar PostgreSQL 16** *(lógica interna)*: Instala o PostgreSQL 16 com suporte opcional ao TimescaleDB, configura senha do superusuário e libera redes autorizadas.
-  2. **Criar Banco de Dados e Usuário** *(lógica interna)*: Provisiona banco, usuário e opcionalmente ativa a extensão TimescaleDB no banco criado.
-  3. **Módulo de Redes e Acesso Externo** *(lógica interna)*:
-     - *Listar redes autorizadas*: Mostra todas as faixas CIDR cadastradas no `pg_hba.conf`.
-     - *Adicionar nova rede*: Adiciona nova regra (ex: VPN `172.16.2.0/26` ou Datacenter `10.10.0.0/22`) e recarrega o serviço sem downtime (`systemctl reload postgresql`).
-     - *Remover rede*: Permite excluir regras existentes de forma assistida e segura.
-  4. **Excluir Banco de Dados** *(lógica interna)*: Lista, confirma e remove um banco de dados com opção de backup preventivo.
-  5. **Status do Serviço e Conexões Ativas** *(lógica interna)*: Exibe o status do `systemd` e lista em tempo real as sessões e IPs conectados via `pg_stat_activity`.
-  6. **Desinstalar PostgreSQL** *(lógica interna)*: Executa a limpeza profunda — purge de pacotes, remoção de dados, repositórios e usuário de sistema.
+  Painel de controle interativo e **completamente autossuficiente** que centraliza todas as operações de gerenciamento do PostgreSQL em um único arquivo. Toda a lógica de instalação, criação, exclusão, redes, usuários, permissões e desinstalação está **embutida internamente**, sem chamadas a scripts externos.
 
 - **Como Utilizar**:
   ```bash
@@ -225,6 +214,100 @@ Os scripts foram desenvolvidos e homologados especificamente para distribuiçõe
   # 2. Executar como superusuário
   sudo ./manage_pg.sh
   ```
+
+---
+
+#### 📋 Menu Integrado do `manage_pg.sh`
+
+| Opção | Módulo | Descrição Resumida |
+| :---: | :--- | :--- |
+| **1** | Instalar PostgreSQL 16 | Instala PG16 + TimescaleDB opcional, define senha do superusuário e libera redes autorizadas |
+| **2** | Criar Banco de Dados e Usuário | Provisiona banco, usuário owner, GRANT e extensão TimescaleDB opcional |
+| **3** | Gerenciar Redes e Acessos Externos | Submenu: listar / adicionar / remover regras CIDR no `pg_hba.conf` sem downtime |
+| **4** | Excluir Banco de Dados | Lista, confirma e remove banco com backup preventivo e encerramento de sessões |
+| **5** | Status do Serviço e Conexões Ativas | Status `systemd` + sessões em tempo real via `pg_stat_activity` |
+| **6** | Desinstalar PostgreSQL | Limpeza profunda: purge, dados, repositórios, usuário de sistema |
+| **7** | **Gerenciar Usuários e Permissões** | **Submenu completo de gestão de roles, permissões e senhas** *(novo)* |
+| **0** | Sair | Encerra o painel |
+
+---
+
+#### 👤 Módulo 7 — Gerenciamento de Usuários e Permissões (detalhado)
+
+Este módulo é acessado pela **Opção 7** do menu principal e centraliza toda a gestão de roles PostgreSQL. É composto por 5 sub-funções:
+
+---
+
+##### 7.1 — Listar Usuários e Permissões
+
+Exibe uma listagem detalhada de todos os usuários (roles) cadastrados no servidor PostgreSQL, excluindo os roles internos do sistema (prefixo `pg_`). Para cada usuário são exibidos:
+
+| Atributo | Descrição |
+| :--- | :--- |
+| **SuperUsuário** | `SIM` se possui privilégios totais (`SUPERUSER`) |
+| **Criar DB** | `SIM` se pode criar novos bancos de dados (`CREATEDB`) |
+| **Criar Role** | `SIM` se pode criar novos roles/usuários (`CREATEROLE`) |
+| **Pode Login** | `SIM` se está habilitado para conexão (`LOGIN`) |
+| **Replicação** | `SIM` se pode ser usado em streaming replica (`REPLICATION`) |
+| **Bancos c/ acesso** | Lista de bancos onde o usuário possui permissão de `CONNECT` |
+
+**Consulta interna utilizada**: `pg_roles` + `has_database_privilege()`
+
+---
+
+##### 7.2 — Criar Novo Usuário
+
+Cria um novo role PostgreSQL com senha segura (digitação oculta com confirmação) e permite selecionar um dos 4 **perfis de permissão pré-definidos**:
+
+| Perfil | Opção | Flags criadas | Indicado para |
+| :--- | :---: | :--- | :--- |
+| **Padrão** | 1 | `LOGIN` | Usuários de aplicação (recomendado para apps) |
+| **Criador de BD** | 2 | `LOGIN CREATEDB` | DBAs que precisam criar bancos |
+| **Superusuário** | 3 | `LOGIN SUPERUSER` | Administração total (use com cautela!) |
+| **Replicação** | 4 | `LOGIN REPLICATION NOSUPER` | Streaming replica / standby |
+
+Após a criação, é oferecida a opção de **vincular o usuário a um banco existente** (concedendo `CONNECT` no banco e `USAGE` no schema `public`).
+
+---
+
+##### 7.3 — Ajustar Permissões de Usuário em Banco
+
+Permite configurar ou revogar permissões granulares de um usuário em um banco de dados específico. Exibe listas de usuários e bancos disponíveis para seleção interativa, com 5 modos de operação:
+
+| Opção | Nível | O que é aplicado |
+| :---: | :--- | :--- |
+| **1** | ALL PRIVILEGES | `GRANT ALL` no banco, todas as tabelas, sequências, funções e `DEFAULT PRIVILEGES` |
+| **2** | Somente Leitura | `GRANT CONNECT` + `GRANT SELECT` em tabelas e sequências + `DEFAULT PRIVILEGES SELECT` |
+| **3** | Leitura + Escrita | `GRANT CONNECT` + `GRANT SELECT, INSERT, UPDATE, DELETE` em tabelas + `DEFAULT PRIVILEGES` |
+| **4** | Tornar Dono do Banco | `ALTER DATABASE ... OWNER TO ...` |
+| **5** | Revogar Tudo | `REVOKE ALL` em tabelas, sequências, funções, schema e banco |
+
+> [!TIP]
+> As opções **1, 2 e 3** também aplicam `ALTER DEFAULT PRIVILEGES`, garantindo que **futuras tabelas criadas** no banco já sejam acessíveis ao usuário, sem precisar rodar `GRANT` novamente.
+
+---
+
+##### 7.4 — Alterar Senha de Usuário
+
+Altera a senha de qualquer usuário existente com autenticação dupla (nova senha + confirmação). Lista apenas usuários com `rolcanlogin = true` para facilitar a seleção.
+
+**Comando interno**: `ALTER USER "<usuario>" WITH PASSWORD '<nova_senha>';`
+
+---
+
+##### 7.5 — Excluir Usuário
+
+Remove um role PostgreSQL com verificação de segurança em múltiplas camadas:
+
+1. **Proteção do superusuário `postgres`**: O usuário interno nunca pode ser excluído pelo script.
+2. **Detecção de bancos proprietários**: Verifica se o usuário é `OWNER` de algum banco de dados.
+3. **Resolução automática de dependências**: Caso existam dependências, oferece executar:
+   ```sql
+   REASSIGN OWNED BY "<usuario>" TO postgres;
+   DROP OWNED BY "<usuario>";
+   ```
+   Antes de prosseguir com o `DROP USER`.
+4. **Confirmação final**: Exige confirmação explícita (`s/n`) antes da exclusão.
 
 ---
 
@@ -238,7 +321,8 @@ flowchart LR
     B --> C["Copiar manage_pg.sh"]
     C --> D["Opção 1: Instalar PostgreSQL"]
     D --> E["Opção 2: Criar banco\n(ex: banco 'zabbix')"]
-    E --> F["Serviços Conectados\n(Zabbix Server / pgAdmin)"]
+    E --> F["Opção 7: Gerenciar\nUsuários e Permissões"]
+    F --> G["Serviços Conectados\n(Zabbix Server / pgAdmin)"]
 ```
 
 1. **Provisione um Contêiner LXC ou VM**:
@@ -253,6 +337,7 @@ flowchart LR
    - **Opção 2**: Crie bancos para cada aplicação (ex: Zabbix, NetBox, SonarQube, Grafana).
    - **Para o Zabbix**: Confirme a ativação da extensão TimescaleDB (`s`).
    - **Para NetBox, SonarQube, Grafana, etc.**: Responda não (`n`) para manter o banco relacional 100% puro.
+   - **Opção 7**: Gerencie usuários e ajuste permissões conforme necessário.
 4. **Conecte sua Aplicação**:
    - Utilize a string de conexão exibida no final de cada criação nas configurações do seu serviço.
 
@@ -260,9 +345,12 @@ flowchart LR
 
 ## 🔒 Boas Práticas e Segurança
 
+- **Princípio do menor privilégio**: Ao criar usuários para aplicações, utilize o **Perfil Padrão** (somente `LOGIN`) e ajuste as permissões com a **Opção 7.3** conforme o nível de acesso necessário. Evite conceder `SUPERUSER` a usuários de aplicação.
+- **Revisão periódica de permissões**: Use a **Opção 7.1** regularmente para auditar quais usuários existem e quais bancos eles podem acessar.
 - **Controle de Firewall**: Se você liberou acesso externo durante a instalação, restrinja o acesso à porta `5432` no Firewall do Proxmox VE ou via `ufw` apenas para os IPs dos clientes autorizados:
   ```bash
   sudo ufw allow from <IP_DO_CLIENTE> to any port 5432 proto tcp
   ```
 - **Autenticação SCRAM-SHA-256**: O script configura o método moderno e seguro de senhas `scram-sha-256` no `pg_hba.conf`, prevenindo ataques de interceptação de credenciais.
 - **Backups**: Recomenda-se configurar agendamentos periódicos de backup no Proxmox VE (`vzdump` para o container LXC/VM) ou rotinas com `pg_dump` para proteção lógica dos dados.
+- **Senhas de usuários**: A digitação de senhas é sempre feita em modo oculto (`read -s`) para evitar exposição no terminal e no histórico do shell (`.bash_history`).
