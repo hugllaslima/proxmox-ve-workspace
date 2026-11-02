@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: debian_versions.sh
+# Script: debian_versions_clean.sh
 # Descrição: Script de sanitização e preparação para sistemas baseados em Debian.
 #            Instala qemu-guest-agent, limpa logs, cache e histórico.
 # ==============================================================================

@@ -54,11 +54,11 @@ scripts-template-cloud-init/
 ├── ubuntu_24_04_template.sh
 ├── ubuntu_26_04_template.sh
 ├── cleanup-images/
-│   ├── alpine-version.sh
-│   ├── debian_versions.sh
-│   ├── oracle-versions.sh
-│   ├── rhel_versions.sh
-│   ├── ubuntu_versions.sh
+│   ├── alpine_versions_clean.sh
+│   ├── debian_versions_clean.sh
+│   ├── oracle_versions_clean.sh
+│   ├── rhel_versions_clean.sh
+│   ├── ubuntu_versions_clean.sh
 │   └── README.md
 └── README.md
 ```
@@ -492,11 +492,11 @@ Para isso, após realizar as configurações manuais descritas na seção anteri
 
 | Script | Sistema Operacional |
 | :--- | :--- |
-| `cleanup-images/alpine-version.sh` | Alpine Linux |
-| `cleanup-images/debian_versions.sh` | Debian |
-| `cleanup-images/oracle-versions.sh` | Oracle Linux |
-| `cleanup-images/rhel_versions.sh` | RHEL, AlmaLinux, Rocky Linux e CentOS |
-| `cleanup-images/ubuntu_versions.sh` | Ubuntu |
+| `cleanup-images/alpine_versions_clean.sh` | Alpine Linux |
+| `cleanup-images/debian_versions_clean.sh` | Debian |
+| `cleanup-images/oracle_versions_clean.sh` | Oracle Linux |
+| `cleanup-images/rhel_versions_clean.sh` | RHEL, AlmaLinux, Rocky Linux e CentOS |
+| `cleanup-images/ubuntu_versions_clean.sh` | Ubuntu |
 
 Cada script realiza automaticamente as seguintes etapas e **desliga a VM ao final**:
 

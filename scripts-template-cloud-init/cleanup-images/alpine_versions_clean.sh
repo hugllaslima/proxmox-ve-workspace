@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: alpine-version.sh
+# Script: alpine_versions_clean.sh
 # Descrição: Script de sanitização e preparação para Alpine Linux.
 #            Instala qemu-guest-agent, limpa logs, cache e histórico.
 # ==============================================================================

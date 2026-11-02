@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: oracle-versions.sh
+# Script: oracle_versions_clean.sh
 # Descrição: Script de sanitização e preparação para Oracle Linux.
 #            Instala qemu-guest-agent, limpa logs, cache e histórico.
 # ==============================================================================

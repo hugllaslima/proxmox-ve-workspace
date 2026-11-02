@@ -16,11 +16,11 @@ Utilize o script adequado de acordo com a imagem do sistema operacional da sua m
 
 | Script | Sistema Operacional | Descrição |
 | :--- | :--- | :--- |
-| `alpine-version.sh` | **Alpine Linux** | Instala via `apk`, configura o OpenRC e limpa cache/logs. |
-| `debian_versions.sh` | **Debian** | Usa `apt`, limpa cache, logs e reseta o `machine-id`. |
-| `oracle-versions.sh` | **Oracle Linux** | Usa `dnf`, limpa cache, logs e reseta o `machine-id`. |
-| `rhel_versions.sh` | **RHEL, AlmaLinux, Rocky Linux** e **CentOS** | Usa `dnf`, limpa cache, logs e reseta o `machine-id`. |
-| `ubuntu_versions.sh` | **Ubuntu** | Usa `apt`, limpa cache, logs e reseta o `machine-id`. |
+| `alpine_versions_clean.sh` | **Alpine Linux** | Instala via `apk`, configura o OpenRC e limpa cache/logs. |
+| `debian_versions_clean.sh` | **Debian** | Usa `apt`, limpa cache, logs e reseta o `machine-id`. |
+| `oracle_versions_clean.sh` | **Oracle Linux** | Usa `dnf`, limpa cache, logs e reseta o `machine-id`. |
+| `rhel_versions_clean.sh` | **RHEL, AlmaLinux, Rocky Linux** e **CentOS** | Usa `dnf`, limpa cache, logs e reseta o `machine-id`. |
+| `ubuntu_versions_clean.sh` | **Ubuntu** | Usa `apt`, limpa cache, logs e reseta o `machine-id`. |
 
 ## 🚀 Como Utilizar
 

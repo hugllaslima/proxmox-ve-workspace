@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: rhel_versions.sh
+# Script: rhel_versions_clean.sh
 # Descrição: Script de sanitização e preparação para RHEL, AlmaLinux e Rocky.
 #            Instala qemu-guest-agent, limpa logs, cache e histórico.
 # ==============================================================================

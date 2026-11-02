@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script: ubuntu_versions.sh
+# Script: ubuntu_versions_clean.sh
 # Descrição: Script de sanitização e preparação para sistemas baseados em Ubuntu.
 #            Instala qemu-guest-agent, limpa logs, cache e histórico.
 # ==============================================================================
