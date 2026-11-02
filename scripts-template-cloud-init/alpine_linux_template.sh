@@ -1,4 +1,6 @@
 #!/bin/bash
+set -Eeuo pipefail
+
 # ==============================================================================
 # SCRIPT PARA CRIAÇÃO DE TEMPLATE CLOUD-INIT ALPINE LINUX NO PROXMOX VE
 # ==============================================================================
@@ -62,28 +64,85 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+VM_ID=''
+VM_CREATED=0
+trap 'status=$?; printf "${RED}Erro: comando falhou na linha %s (código %s): %s${NC}\n" "$LINENO" "$status" "$BASH_COMMAND" >&2; if [[ "$VM_CREATED" -eq 1 ]]; then printf "${RED}A VM %s pode ter sido criada parcialmente; verifique-a no Proxmox antes de executar novamente.${NC}\n" "$VM_ID" >&2; fi; exit "$status"' ERR
+
+if [[ "$EUID" -ne 0 ]]; then
+    echo -e "${RED}Erro: execute este script como root no nó Proxmox VE.${NC}" >&2
+    exit 1
+fi
+
+for command_name in qm pvesm pvesh wget awk grep; do
+    if ! command -v "$command_name" >/dev/null 2>&1; then
+        echo -e "${RED}Erro: comando obrigatório não encontrado: $command_name${NC}" >&2
+        exit 1
+    fi
+done
+
 echo -e "${GREEN}=== Proxmox Cloud-Init Template Creator (Alpine Linux) ===${NC}"
 
 # 1. Pergunta o ID da VM
 while true; do
-    read -p "Digite o ID para a nova VM Template (ex: 9009): " VM_ID
-    if qm status $VM_ID >/dev/null 2>&1; then
-        echo -e "${RED}Erro: O ID $VM_ID já está em uso! Por favor, escolha outro ID.${NC}"
-    else
-        break
+    read -r -p "Digite o ID para a nova VM Template (ex: 9009): " VM_ID
+    if [[ ! "$VM_ID" =~ ^[0-9]{1,9}$ ]]; then
+        echo -e "${RED}Erro: informe um ID numérico entre 100 e 999999999.${NC}"
+        continue
     fi
+
+    VM_ID=$((10#$VM_ID))
+    if (( VM_ID < 100 || VM_ID > 999999999 )); then
+        echo -e "${RED}Erro: informe um ID numérico entre 100 e 999999999.${NC}"
+        continue
+    fi
+
+    CLUSTER_RESOURCES=$(pvesh get /cluster/resources --type vm --output-format json)
+    if grep -Eq "\"vmid\"[[:space:]]*:[[:space:]]*${VM_ID}([,}])" <<< "$CLUSTER_RESOURCES"; then
+        echo -e "${RED}Erro: O ID $VM_ID já está em uso no cluster! Por favor, escolha outro ID.${NC}"
+        continue
+    fi
+    break
 done
 
 # 2. Pergunta o Nome da VM
-read -p "Digite o Nome para o Template (ex: alpine-linux-template): " VM_NAME
+while true; do
+    read -r -p "Digite o Nome para o Template (ex: alpine-linux-template): " VM_NAME
+    if [[ ! "$VM_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$ ]]; then
+        echo -e "${RED}Erro: informe um nome de 1 a 63 caracteres, começando por letra ou número e usando apenas letras, números, ponto, hífen ou sublinhado.${NC}"
+        continue
+    fi
+    break
+done
 
 # 3. Lista Storages disponíveis e pergunta onde alocar
 echo -e "\nStorages disponíveis:"
-pvesm status | awk 'NR>1 {print "- " $1}'
-read -p "Em qual storage o disco será alocado? (ex: local): " STORAGE
+STORAGE_STATUS=$(pvesm status)
+awk 'NR>1 {printf "- %s (%s)\n", $1, $3}' <<< "$STORAGE_STATUS"
+while true; do
+    read -r -p "Em qual storage o disco será alocado? (ex: local-lvm): " STORAGE
+    if ! awk -v storage="$STORAGE" 'NR>1 && $1 == storage && $3 == "active" {found=1} END {exit !found}' <<< "$STORAGE_STATUS"; then
+        echo -e "${RED}Erro: storage '$STORAGE' inexistente ou inativo. Escolha um storage ativo da lista.${NC}"
+        continue
+    fi
+
+    STORAGE_CONFIG=$(pvesm config "$STORAGE")
+    STORAGE_CONTENT=$(awk '$1 == "content" {print $2; exit}' <<< "$STORAGE_CONFIG")
+    if [[ ! ",$STORAGE_CONTENT," =~ ,images, ]]; then
+        echo -e "${RED}Erro: o storage '$STORAGE' não está configurado para armazenar discos de VM (conteúdo images). Escolha outro storage.${NC}"
+        continue
+    fi
+    break
+done
 
 # 4. Pergunta o tamanho do disco
-read -p "Qual o tamanho final do disco em GB? (ex: 5): " DISK_SIZE
+while true; do
+    read -r -p "Qual o tamanho final do disco em GB? (ex: 5): " DISK_SIZE
+    if [[ ! "$DISK_SIZE" =~ ^[1-9][0-9]*$ ]]; then
+        echo -e "${RED}Erro: informe um tamanho inteiro maior que zero, em GB.${NC}"
+        continue
+    fi
+    break
+done
 
 # --- Início do Processo ---
 
@@ -94,7 +153,7 @@ IMAGE_NAME="nocloud_alpine-3.21.2-x86_64-bios-cloudinit-r0.qcow2"
 IMAGE_URL="https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/$IMAGE_NAME"
 
 echo -e "\n${GREEN}[1/6] Baixando/Verificando imagem Alpine Linux...${NC}"
-mkdir -p $IMAGE_DIR
+mkdir -p "$IMAGE_DIR"
 if [ ! -f "$IMAGE_DIR/$IMAGE_NAME" ]; then
     wget -O "$IMAGE_DIR/$IMAGE_NAME" "$IMAGE_URL" || { echo -e "${RED}Erro ao baixar imagem!${NC}"; exit 1; }
 else
@@ -102,11 +161,12 @@ else
 fi
 
 echo -e "${GREEN}[2/6] Criando a estrutura da VM (1 CPU, 1GB RAM)...${NC}"
-qm create $VM_ID --name "$VM_NAME" --memory 1024 --cores 1 --net0 virtio,bridge=vmbr0 --ostype l26 --agent 1 || exit 1
+qm create "$VM_ID" --name "$VM_NAME" --memory 1024 --cores 1 --net0 virtio,bridge=vmbr0 --ostype l26 --agent 1
+VM_CREATED=1
 
 echo -e "${GREEN}[3/6] Importando disco (isso pode demorar um pouco)...${NC}"
 # Captura a saída para extrair o nome do arquivo criado se necessário
-IMPORT_LOG=$(qm importdisk $VM_ID "$IMAGE_DIR/$IMAGE_NAME" $STORAGE)
+IMPORT_LOG=$(qm importdisk "$VM_ID" "$IMAGE_DIR/$IMAGE_NAME" "$STORAGE")
 echo "$IMPORT_LOG"
 
 # Tratativa para storage tipo diretório (local) ou LVM
@@ -118,24 +178,30 @@ else
 fi
 
 echo -e "${GREEN}[4/6] Configurando Hardware e Cloud-Init...${NC}"
-qm set $VM_ID --virtio0 "$DISK_PATH" >/dev/null
-qm set $VM_ID --ide2 "$STORAGE:cloudinit" >/dev/null
-qm set $VM_ID --boot order=virtio0 >/dev/null
-qm set $VM_ID --serial0 socket --vga serial0 >/dev/null
+qm set "$VM_ID" --virtio0 "$DISK_PATH" >/dev/null
+qm set "$VM_ID" --ide2 "$STORAGE:cloudinit" >/dev/null
+qm set "$VM_ID" --boot order=virtio0 >/dev/null
+qm set "$VM_ID" --serial0 socket --vga serial0 >/dev/null
 
 echo -e "${GREEN}[5/6] Redimensionando para ${DISK_SIZE}G...${NC}"
-qm resize $VM_ID virtio0 ${DISK_SIZE}G >/dev/null
+qm resize "$VM_ID" virtio0 "${DISK_SIZE}G" >/dev/null
 
 echo -e "\n${GREEN}=== Revisão das Configurações ===${NC}"
-qm config $VM_ID
+qm config "$VM_ID"
 echo -e "------------------------------------------------"
 
 # 5. Confirmação Final
-read -p "Deseja converter a VM em Template agora? (s/n): " CONFIRM
+while true; do
+    read -r -p "Deseja converter a VM em Template agora? (s/n): " CONFIRM
+    if [[ "$CONFIRM" =~ ^[sSnN]$ ]]; then
+        break
+    fi
+    echo -e "${RED}Erro: responda somente s ou n.${NC}"
+done
 
 if [[ "$CONFIRM" == "s" || "$CONFIRM" == "S" ]]; then
     echo -e "${GREEN}[6/6] Convertendo para Template...${NC}"
-    qm template $VM_ID
+    qm template "$VM_ID"
     echo -e "${GREEN}Sucesso! Template $VM_ID criado.${NC}"
 else
     echo -e "\n${GREEN}A VM $VM_ID foi criada com sucesso, mas NÃO foi convertida em template.${NC}"
