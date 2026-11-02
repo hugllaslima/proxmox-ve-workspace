@@ -73,7 +73,7 @@ if [[ "$EUID" -ne 0 ]]; then
     exit 1
 fi
 
-for command_name in qm pvesm pvesh wget awk grep; do
+for command_name in qm pvesm pvesh wget awk grep perl; do
     if ! command -v "$command_name" >/dev/null 2>&1; then
         echo -e "${RED}Erro: comando obrigatório não encontrado: $command_name${NC}" >&2
         exit 1
@@ -125,8 +125,8 @@ while true; do
         continue
     fi
 
-    STORAGE_CONFIG=$(pvesm config "$STORAGE")
-    STORAGE_CONTENT=$(awk '$1 == "content" {print $2; exit}' <<< "$STORAGE_CONFIG")
+    STORAGE_CONFIG=$(pvesh get "/storage/$STORAGE" --output-format json)
+    STORAGE_CONTENT=$(perl -MJSON::PP -e 'local $/; $config = decode_json(<>); print $config->{content} // "";' <<< "$STORAGE_CONFIG")
     if [[ ! ",$STORAGE_CONTENT," =~ ,images, ]]; then
         echo -e "${RED}Erro: o storage '$STORAGE' não está configurado para armazenar discos de VM (conteúdo images). Escolha outro storage.${NC}"
         continue
