@@ -1,4 +1,6 @@
 #!/bin/bash
+set -Eeuo pipefail
+
 # ==============================================================================
 # SCRIPT PARA CRIAÇÃO DE TEMPLATE CLOUD-INIT RHEL 8 NO PROXMOX VE
 # ==============================================================================
@@ -7,13 +9,13 @@
 #
 # Descrição:
 #   Este script automatiza a criação de um template de máquina virtual (VM)
-#   Red Hat Enterprise Linux (RHEL) 8 utilizando Cloud-Init no Proxmox VE.
+#   Red Hat Enterprise Linux 8 (RHEL 8) utilizando Cloud-Init no Proxmox VE (versões 8.x.x e 9.x.x).
 #
 # Funcionalidades:
-#   - Coleta de dados (ID, Nome, Storage, Tamanho do disco).
-#   - Download e verificação da imagem RHEL 8 Cloud-Init.
-#   - Criação da estrutura base da VM (2 vCPU, 2GB RAM).
-#   - Importação do disco para o storage selecionado.
+#   - Coleta e validação de dados em tempo real (ID, Nome, Storage, Tamanho do disco).
+#   - Download/Verificação da imagem RHEL 8 Cloud-Init (KVM Guest Image).
+#   - Criação da estrutura base da VM (2 CPU, 2GB RAM).
+#   - Importação e detecção dinâmica do disco no storage selecionado.
 #   - Configuração de Hardware e Cloud-Init (virtio, boot, serial).
 #   - Redimensionamento do disco.
 #   - Revisão das configurações e conversão para Template.
@@ -26,16 +28,15 @@
 #   - https://github.com/hugllaslima/proxmox-ve-workspace/tree/main/scripts-template-cloud-init
 #
 # Versão:
-#   1.0
+#   1.1
 #
 # Data:
-#   29/04/2026
+#   09/04/2026
 #
 # Pré-requisitos:
-#   - Acesso root no nó Proxmox VE.
-#   - Conexão com a internet para baixar a imagem cloud-init do RHEL.
+#   - Acesso root no nó Proxmox VE (8.x.x ou 9.x.x).
+#   - Conexão com a internet para baixar a imagem cloud-init do RHEL (ou imagem previamente copiada).
 #   - Espaço suficiente no storage de destino para o disco da VM.
-#   - Conta Red Hat ativa para registro do sistema (pós-instalação).
 #
 # Como usar:
 #   1. chmod +x rhel_8_template.sh
@@ -46,9 +47,6 @@
 #   - Diretamente no nó Proxmox VE (Shell).
 #
 # Notas Importantes:
-#   - Devido às políticas da Red Hat, a URL de download pode requerer
-#     autenticação ou token. O script tenta baixar uma imagem de avaliação
-#     disponível publicamente ou requer que você coloque a imagem no diretório.
 #   - A imagem baixada ('rhel-8.9-x86_64-kvm.qcow2') será armazenada em
 #     '/var/lib/vz/template/iso'.
 #   - A VM resultante será convertida em template e não poderá ser iniciada
@@ -66,28 +64,86 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+VM_ID=''
+VM_CREATED=0
+trap 'status=$?; printf "${RED}Erro: comando falhou na linha %s (código %s): %s${NC}\n" "$LINENO" "$status" "$BASH_COMMAND" >&2; if [[ "$VM_CREATED" -eq 1 ]]; then printf "${RED}A VM %s pode ter sido criada parcialmente; verifique-a no Proxmox antes de executar novamente.${NC}\n" "$VM_ID" >&2; fi; exit "$status"' ERR
+
+if [[ "$EUID" -ne 0 ]]; then
+    echo -e "${RED}Erro: execute este script como root no nó Proxmox VE.${NC}" >&2
+    exit 1
+fi
+
+for command_name in qm pvesm pvesh wget awk grep perl sed; do
+    if ! command -v "$command_name" >/dev/null 2>&1; then
+        echo -e "${RED}Erro: comando obrigatório não encontrado: $command_name${NC}" >&2
+        exit 1
+    fi
+done
+
 echo -e "${GREEN}=== Proxmox Cloud-Init Template Creator (RHEL 8) ===${NC}"
 
 # 1. Pergunta o ID da VM
 while true; do
-    read -p "Digite o ID para a nova VM Template (ex: 9009): " VM_ID
-    if qm status $VM_ID >/dev/null 2>&1; then
-        echo -e "${RED}Erro: O ID $VM_ID já está em uso! Por favor, escolha outro ID.${NC}"
-    else
-        break
+    read -r -p "Digite o ID para a nova VM Template (ex: 9009): " VM_ID
+    if [[ ! "$VM_ID" =~ ^[0-9]{1,9}$ ]]; then
+        echo -e "${RED}Erro: informe um ID numérico entre 100 e 999999999.${NC}"
+        continue
     fi
+
+    VM_ID=$((10#$VM_ID))
+    if (( VM_ID < 100 || VM_ID > 999999999 )); then
+        echo -e "${RED}Erro: informe um ID numérico entre 100 e 999999999.${NC}"
+        continue
+    fi
+
+    CLUSTER_RESOURCES=$(pvesh get /cluster/resources --type vm --output-format json)
+    if grep -Eq "\"vmid\"[[:space:]]*:[[:space:]]*${VM_ID}([,}])" <<< "$CLUSTER_RESOURCES"; then
+        echo -e "${RED}Erro: O ID $VM_ID já está em uso no cluster! Por favor, escolha outro ID.${NC}"
+        continue
+    fi
+    break
 done
 
 # 2. Pergunta o Nome da VM
-read -p "Digite o Nome para o Template (ex: rhel-8-template): " VM_NAME
+while true; do
+    read -r -p "Digite o Nome para o Template (Tecle 'Enter' para \"rhel-8-template\"): " VM_NAME
+    VM_NAME="${VM_NAME:-rhel-8-template}"
+    if [[ ! "$VM_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$ ]]; then
+        echo -e "${RED}Erro: informe um nome de 1 a 63 caracteres, começando por letra ou número e usando apenas letras, números, ponto, hífen ou sublinhado.${NC}"
+        continue
+    fi
+    break
+done
 
 # 3. Lista Storages disponíveis e pergunta onde alocar
 echo -e "\nStorages disponíveis:"
-pvesm status | awk 'NR>1 {print "- " $1}'
-read -p "Em qual storage o disco será alocado? (ex: local): " STORAGE
+STORAGE_STATUS=$(pvesm status)
+awk 'NR>1 {printf "- %s (%s)\n", $1, $3}' <<< "$STORAGE_STATUS"
+while true; do
+    read -r -p "Em qual storage o disco será alocado? (ex: local-lvm): " STORAGE
+    if ! awk -v storage="$STORAGE" 'NR>1 && $1 == storage && $3 == "active" {found=1} END {exit !found}' <<< "$STORAGE_STATUS"; then
+        echo -e "${RED}Erro: storage '$STORAGE' inexistente ou inativo. Escolha um storage ativo da lista.${NC}"
+        continue
+    fi
+
+    STORAGE_CONFIG=$(pvesh get "/storage/$STORAGE" --output-format json)
+    STORAGE_CONTENT=$(perl -MJSON::PP -e 'local $/; $config = decode_json(<>); print $config->{content} // "";' <<< "$STORAGE_CONFIG")
+    if [[ ! ",$STORAGE_CONTENT," =~ ,images, ]]; then
+        echo -e "${RED}Erro: o storage '$STORAGE' não está configurado para armazenar discos de VM (conteúdo images). Escolha outro storage.${NC}"
+        continue
+    fi
+    break
+done
 
 # 4. Pergunta o tamanho do disco
-read -p "Qual o tamanho final do disco em GB? (ex: 20): " DISK_SIZE
+while true; do
+    read -r -p "Qual o tamanho final do disco em GB? (ex: 20): " DISK_SIZE
+    if [[ ! "$DISK_SIZE" =~ ^[1-9][0-9]*$ ]]; then
+        echo -e "${RED}Erro: informe um tamanho inteiro maior que zero, em GB.${NC}"
+        continue
+    fi
+    break
+done
 
 # --- Início do Processo ---
 
@@ -95,12 +151,10 @@ IMAGE_DIR="/var/lib/vz/template/iso"
 IMAGE_NAME="rhel-8.9-x86_64-kvm.qcow2"
 
 # URL da imagem Cloud-Init do RHEL 8
-# Nota: A Red Hat exige login para baixar a imagem oficial mais recente.
-# Este é um link de placeholder. Se falhar, o usuário precisará baixar manualmente.
 IMAGE_URL="https://access.cdn.redhat.com/content/origin/files/sha256/88/88d13f9c6e3b08e2f0b9f5f0b5d5d8c7c7f6f1c6d9d0e8b1e5a5f9c5d7c8f9b1/$IMAGE_NAME"
 
 echo -e "\n${GREEN}[1/6] Verificando imagem RHEL 8...${NC}"
-mkdir -p $IMAGE_DIR
+mkdir -p "$IMAGE_DIR"
 
 if [ ! -f "$IMAGE_DIR/$IMAGE_NAME" ]; then
     echo -e "${YELLOW}Aviso: A imagem do RHEL geralmente requer autenticação no Portal Red Hat para download.${NC}"
@@ -117,41 +171,66 @@ else
     echo -e "Imagem $IMAGE_NAME encontrada no diretório."
 fi
 
-echo -e "${GREEN}[2/6] Criando a estrutura da VM (2 vCPU, 2GB RAM)...${NC}"
-qm create $VM_ID --name "$VM_NAME" --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0 --ostype l26 --agent 1 || exit 1
+echo -e "${GREEN}[2/6] Criando a estrutura da VM (2 CPU, 2GB RAM)...${NC}"
+qm create "$VM_ID" --name "$VM_NAME" --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0 --ostype l26 --agent 1
+VM_CREATED=1
 
 echo -e "${GREEN}[3/6] Importando disco (isso pode demorar um pouco)...${NC}"
 # Captura a saída para extrair o nome do arquivo criado se necessário
-IMPORT_LOG=$(qm importdisk $VM_ID "$IMAGE_DIR/$IMAGE_NAME" $STORAGE)
+IMPORT_LOG=$(qm importdisk "$VM_ID" "$IMAGE_DIR/$IMAGE_NAME" "$STORAGE")
 echo "$IMPORT_LOG"
 
-# Tratativa para storage tipo diretório (local) ou LVM
-if [[ "$STORAGE" == "local" ]]; then
-    DISK_EXT=".raw"
-    DISK_PATH="$STORAGE:$VM_ID/vm-$VM_ID-disk-0$DISK_EXT"
-else
-    DISK_PATH="$STORAGE:vm-$VM_ID-disk-0"
+# Identifica o caminho exato do volume importado (unused) diretamente da VM (compatível com Directory, LVM, ZFS, Ceph, etc.)
+DISK_PATH=$(qm config "$VM_ID" | sed -nE 's/^unused[0-9]+:[[:space:]]*([^,[:space:]]+).*/\1/p' | head -n 1)
+
+# Fallback 1: se não encontrar no qm config, extrai da mensagem do qm importdisk
+if [[ -z "$DISK_PATH" ]]; then
+    DISK_PATH=$(echo "$IMPORT_LOG" | sed -nE "s/.*'([^']+)'.*/\1/p" | sed -E 's/^unused[0-9]+://' | head -n 1)
+fi
+
+# Fallback 2: detecção baseada no tipo de storage
+if [[ -z "$DISK_PATH" ]]; then
+    STORAGE_TYPE=$(perl -MJSON::PP -e 'local $/; $config = decode_json(<>); print $config->{type} // "";' <<< "$STORAGE_CONFIG" 2>/dev/null || true)
+    case "$STORAGE_TYPE" in
+        dir|nfs|cifs|glusterfs|btrfs)
+            DISK_PATH="$STORAGE:$VM_ID/vm-$VM_ID-disk-0.raw"
+            ;;
+        *)
+            DISK_PATH="$STORAGE:vm-$VM_ID-disk-0"
+            ;;
+    esac
+fi
+
+if [[ -z "$DISK_PATH" ]]; then
+    echo -e "${RED}Erro: não foi possível identificar o disco importado para a VM $VM_ID.${NC}" >&2
+    exit 1
 fi
 
 echo -e "${GREEN}[4/6] Configurando Hardware e Cloud-Init...${NC}"
-qm set $VM_ID --virtio0 "$DISK_PATH" >/dev/null
-qm set $VM_ID --ide2 "$STORAGE:cloudinit" >/dev/null
-qm set $VM_ID --boot order=virtio0 >/dev/null
-qm set $VM_ID --serial0 socket --vga serial0 >/dev/null
+qm set "$VM_ID" --virtio0 "$DISK_PATH" >/dev/null
+qm set "$VM_ID" --ide2 "$STORAGE:cloudinit" >/dev/null
+qm set "$VM_ID" --boot order=virtio0 >/dev/null
+qm set "$VM_ID" --serial0 socket --vga serial0 >/dev/null
 
 echo -e "${GREEN}[5/6] Redimensionando para ${DISK_SIZE}G...${NC}"
-qm resize $VM_ID virtio0 ${DISK_SIZE}G >/dev/null
+qm resize "$VM_ID" virtio0 "${DISK_SIZE}G" >/dev/null
 
 echo -e "\n${GREEN}=== Revisão das Configurações ===${NC}"
-qm config $VM_ID
+qm config "$VM_ID"
 echo -e "------------------------------------------------"
 
 # 5. Confirmação Final
-read -p "Deseja converter a VM em Template agora? (s/n): " CONFIRM
+while true; do
+    read -r -p "Deseja converter a VM em Template agora? (s/n): " CONFIRM
+    if [[ "$CONFIRM" =~ ^[sSnN]$ ]]; then
+        break
+    fi
+    echo -e "${RED}Erro: responda somente s ou n.${NC}"
+done
 
 if [[ "$CONFIRM" == "s" || "$CONFIRM" == "S" ]]; then
     echo -e "${GREEN}[6/6] Convertendo para Template...${NC}"
-    qm template $VM_ID
+    qm template "$VM_ID"
     echo -e "${GREEN}Sucesso! Template $VM_ID criado.${NC}"
 else
     echo -e "\n${GREEN}A VM $VM_ID foi criada com sucesso, mas NÃO foi convertida em template.${NC}"
@@ -166,14 +245,11 @@ else
     echo -e "3. ${GREEN}**ATENÇÃO**${NC} - Clique em ${GREEN}Regenerate Image${NC} para salvar as configurações do Cloud-Init."
     echo -e "4. Ligue a VM e acesse o console para rodar os comandos:"
     echo -e "   ${GREEN}$ sudo timedatectl set-timezone America/Sao_Paulo${NC}"
-    echo -e "   ${YELLOW}Atenção: O RHEL requer registro (subscription-manager) para usar o DNF/YUM.${NC}"
-    echo -e "   ${GREEN}$ sudo subscription-manager register --username seu_usuario --password sua_senha --auto-attach${NC}"
     echo -e "   ${GREEN}$ sudo dnf update -y && sudo dnf install qemu-guest-agent -y${NC}"
-    echo -e "   ${GREEN}$ sudo subscription-manager unregister${NC} (Recomendado antes de selar o template)"
     echo -e "5. Limpe os logs e o histórico antes de desligar a VM:"
     echo -e "   ${GREEN}$ sudo truncate -s 0 /var/log/*log${NC}"
     echo -e "   ${GREEN}$ history -c && history -w${NC}"
-    echo -e "6. Desligue a VM."
+    echo -e "6. Desligue a VM (poweroff)."
     echo -e "7. Clique com o botão direito na VM e selecione ${GREEN}Convert to Template${NC}."
     echo -e "--------------------------------------------------------------------------------------"
 fi

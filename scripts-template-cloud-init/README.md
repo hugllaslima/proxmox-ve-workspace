@@ -1,36 +1,51 @@
 # ☁️ Scripts de Template Cloud-Init
 
-Este diretório contém scripts para automatizar a criação de templates de máquinas virtuais (VMs) utilizando Cloud-Init no Proxmox VE.
+Este diretório contém scripts para automatizar a criação de templates de máquinas virtuais (VMs) utilizando Cloud-Init no Proxmox VE (totalmente compatível com as versões **8.x.x** e **9.x.x**).
+
+## 🚀 Principais Funcionalidades e Validações em Tempo Real
+
+Todos os scripts contam com validações automáticas durante a execução:
+
+* **Compatibilidade Ampla (Proxmox VE 8.x.x e 9.x.x):** Suporte nativo em ambas as versões, sem necessidade de alterações ou pacotes extras.
+* **Validação de ID em Tempo Real:** Garante que o ID informado seja numérico (100 a 999999999) e consulta o cluster (`pvesh get /cluster/resources --type vm`) para impedir duplicidade de IDs no ambiente.
+* **Nome Padrão do Template (Tecla 'Enter'):** O usuário pode apenas teclar `Enter` no prompt de nome para adotar o nome padrão sugerido para a distribuição (ex: `debian-12-template`, `ubuntu-24-04-template`) ou digitar um nome personalizado validado em tempo real.
+* **Validação de Storage em Tempo Real:** 
+  - Lista os storages disponíveis e seus status.
+  - Valida se o storage digitado existe e se está ativo (`active`).
+  - Consulta a API Proxmox (`/storage/<nome>`) para certificar que o storage possui suporte a discos de máquina virtual (`content: images`), emitindo alerta imediato caso não suporte.
+* **Detecção Dinâmica do Volume de Disco:** Identifica o identificador exato criado pelo `qm importdisk` a partir da chave `unused0` da VM, garantindo funcionamento transparente em storages do tipo **Diretório, NFS, CIFS, LVM, LVM-Thin, ZFS e Ceph/RBD**.
+* **Validação do Tamanho do Disco:** Valida valores inteiros positivos em GB.
+* **Tratamento Global de Erros:** Execução segura via `set -Eeuo pipefail` e `trap ERR`, alertando em qual linha o comando falhou e se a VM foi criada parcialmente.
 
 ## ⚙️ Configuração Padrão de Hardware
 
 Os scripts provisionam automaticamente os recursos de hardware das máquinas virtuais no momento da criação. Abaixo estão os valores definidos em código (exceto o disco, que é sugerido e pode ser alterado durante a execução interativa do script):
 
-| Sistema Operacional (Família de Scripts) | Núcleos de vCPU (vCores) Alocados | Memória RAM Padrão | Espaço de Armazenamento Sugerido (Interativo) |
-| :--- | :--- | :--- | :--- |
-| **Alma Linux 9** (`alma_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Alpine Linux** (`alpine_linux_template.sh`) | 1 vCPU | 1 GB (1024 MB) | 5 GB |
-| **CentOS Stream 9** (`centos_stream_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Debian 10** (`debian_10_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Debian 11** (`debian_11_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Debian 12** (`debian_12_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Debian 13** (`debian_13_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Oracle Linux 8** (`oracle_linux_8_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Oracle Linux 9** (`oracle_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Red Hat Enterprise Linux 8** (`rhel_8_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Red Hat Enterprise Linux 9** (`rhel_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Rocky Linux 9** (`rocky_linux_9_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Ubuntu 20.04** (`ubuntu_20_04_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Ubuntu 22.04** (`ubuntu_22_04_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Ubuntu 24.04** (`ubuntu_24_04_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
-| **Ubuntu 26.04** (`ubuntu_26_04_template.sh`) | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| Sistema Operacional (Família de Scripts) | Nome Padrão do Template (Tecla 'Enter') | Núcleos de vCPU (vCores) Alocados | Memória RAM Padrão | Espaço de Armazenamento Sugerido (Interativo) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Alma Linux 9** (`alma_linux_9_template.sh`) | `alma-linux-9-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Alpine Linux** (`alpine_linux_template.sh`) | `alpine-linux-template` | 1 vCPU | 1 GB (1024 MB) | 5 GB |
+| **CentOS Stream 9** (`centos_stream_9_template.sh`) | `centos-stream-9-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Debian 10** (`debian_10_template.sh`) | `debian-10-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Debian 11** (`debian_11_template.sh`) | `debian-11-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Debian 12** (`debian_12_template.sh`) | `debian-12-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Debian 13** (`debian_13_template.sh`) | `debian-13-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Oracle Linux 8** (`oracle_linux_8_template.sh`) | `oracle-linux-8-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Oracle Linux 9** (`oracle_linux_9_template.sh`) | `oracle-linux-9-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Red Hat Enterprise Linux 8** (`rhel_8_template.sh`) | `rhel-8-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Red Hat Enterprise Linux 9** (`rhel_9_template.sh`) | `rhel-9-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Rocky Linux 9** (`rocky_linux_9_template.sh`) | `rocky-linux-9-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Ubuntu 20.04** (`ubuntu_20_04_template.sh`) | `ubuntu-20-04-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Ubuntu 22.04** (`ubuntu_22_04_template.sh`) | `ubuntu-22-04-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Ubuntu 24.04** (`ubuntu_24_04_template.sh`) | `ubuntu-24-04-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
+| **Ubuntu 26.04** (`ubuntu_26_04_template.sh`) | `ubuntu-26-04-template` | 2 vCPU | 2 GB (2048 MB) | 20 GB |
 
 ## 🔧 Alterando vCPU e Memória
 
 Se você desejar que o template seja criado com valores diferentes de CPU e Memória, basta abrir o script desejado com um editor de texto (ex: `nano script.sh`) e alterar os valores `2048` e `2` na linha que contém o comando de criação. Exemplo:
 
 ```bash
- qm create $VM_ID --name "$VM_NAME" --memory 4096 --cores 4 ...
+ qm create "$VM_ID" --name "$VM_NAME" --memory 4096 --cores 4 ...
 ```
 
 ## 📂 Estrutura de Diretórios
@@ -513,10 +528,11 @@ Após a VM ser desligada pelo script, você pode convertê-la com segurança em 
 
 ## 🛡️ Pré-requisitos
 
-- **Sistema Operacional**: Proxmox VE.
+- **Sistema Operacional**: Proxmox VE (suporte completo e testado nas versões **8.x.x** e **9.x.x**).
 - **Acesso**: Acesso `root` no nó Proxmox VE (via Shell).
 - **Conectividade**: Conexão com a internet para baixar as imagens cloud-init (Ubuntu/Debian/Rocky/AlmaLinux/Oracle).
-- **Armazenamento**: Espaço suficiente no storage de destino para o disco da VM.
+- **Armazenamento**: Espaço suficiente no storage de destino para o disco da VM (compatível com qualquer tipo de storage: Diretório, NFS, CIFS, LVM, LVM-Thin, ZFS, Ceph).
+- **Dependências do Nó**: `qm`, `pvesm`, `pvesh`, `wget`, `awk`, `grep`, `perl` e `sed` (todos instalados nativamente no Proxmox VE).
 
 ---
 
