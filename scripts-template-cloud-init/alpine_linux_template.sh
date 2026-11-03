@@ -73,7 +73,7 @@ if [[ "$EUID" -ne 0 ]]; then
     exit 1
 fi
 
-for command_name in qm pvesm pvesh wget awk grep perl; do
+for command_name in qm pvesm pvesh wget awk grep perl sed; do
     if ! command -v "$command_name" >/dev/null 2>&1; then
         echo -e "${RED}Erro: comando obrigatório não encontrado: $command_name${NC}" >&2
         exit 1
@@ -106,7 +106,8 @@ done
 
 # 2. Pergunta o Nome da VM
 while true; do
-    read -r -p "Digite o Nome para o Template (ex: alpine-linux-template): " VM_NAME
+    read -r -p "Digite o Nome para o Template (Tecle 'Enter' para \"alpine-linux-template\"): " VM_NAME
+    VM_NAME="${VM_NAME:-alpine-linux-template}"
     if [[ ! "$VM_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$ ]]; then
         echo -e "${RED}Erro: informe um nome de 1 a 63 caracteres, começando por letra ou número e usando apenas letras, números, ponto, hífen ou sublinhado.${NC}"
         continue
@@ -169,12 +170,30 @@ echo -e "${GREEN}[3/6] Importando disco (isso pode demorar um pouco)...${NC}"
 IMPORT_LOG=$(qm importdisk "$VM_ID" "$IMAGE_DIR/$IMAGE_NAME" "$STORAGE")
 echo "$IMPORT_LOG"
 
-# Tratativa para storage tipo diretório (local) ou LVM
-if [[ "$STORAGE" == "local" ]]; then
-    DISK_EXT=".raw"
-    DISK_PATH="$STORAGE:$VM_ID/vm-$VM_ID-disk-0$DISK_EXT"
-else
-    DISK_PATH="$STORAGE:vm-$VM_ID-disk-0"
+# Identifica o caminho exato do volume importado (unused) diretamente da VM (compatível com Directory, LVM, ZFS, Ceph, etc.)
+DISK_PATH=$(qm config "$VM_ID" | sed -nE 's/^unused[0-9]+:[[:space:]]*([^,[:space:]]+).*/\1/p' | head -n 1)
+
+# Fallback 1: se não encontrar no qm config, extrai da mensagem do qm importdisk
+if [[ -z "$DISK_PATH" ]]; then
+    DISK_PATH=$(echo "$IMPORT_LOG" | sed -nE "s/.*'([^']+)'.*/\1/p" | sed -E 's/^unused[0-9]+://' | head -n 1)
+fi
+
+# Fallback 2: detecção baseada no tipo de storage
+if [[ -z "$DISK_PATH" ]]; then
+    STORAGE_TYPE=$(perl -MJSON::PP -e 'local $/; $config = decode_json(<>); print $config->{type} // "";' <<< "$STORAGE_CONFIG" 2>/dev/null || true)
+    case "$STORAGE_TYPE" in
+        dir|nfs|cifs|glusterfs|btrfs)
+            DISK_PATH="$STORAGE:$VM_ID/vm-$VM_ID-disk-0.raw"
+            ;;
+        *)
+            DISK_PATH="$STORAGE:vm-$VM_ID-disk-0"
+            ;;
+    esac
+fi
+
+if [[ -z "$DISK_PATH" ]]; then
+    echo -e "${RED}Erro: não foi possível identificar o disco importado para a VM $VM_ID.${NC}" >&2
+    exit 1
 fi
 
 echo -e "${GREEN}[4/6] Configurando Hardware e Cloud-Init...${NC}"
